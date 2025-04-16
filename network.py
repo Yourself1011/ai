@@ -15,3 +15,12 @@ class Network:
         for i in range(1, len(self.layers)):
             for node in self.layers[i].nodes:
                 node.activate()
+
+    def backPropagate(self, target: list[float]):
+        for i in range(len(self.layers[-1].nodes)):
+            node = self.layers[-1].nodes[i]
+            node.error = 2 * (node.a - target[i])
+
+        for i in range(len(self.layers) - 1, 0, -1):
+            for node in self.layers[i].nodes:
+                node.backPropagate()
