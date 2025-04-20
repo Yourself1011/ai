@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import pygame
 
 if TYPE_CHECKING:
     from network import Network
+    import pygame
 from node import Node
 
 
@@ -13,7 +13,9 @@ class Layer:
         self.network = network
         self.layerNum = layerNum
         self.size = size
-        self.nodes: list[Node] = [Node(prevSize, self, network) for _ in range(size)]
+        self.nodes: list[Node] = [
+            Node(prevSize, self, layerNum, i, network) for i in range(size)
+        ]
 
     def draw(
         self, screen: pygame.Surface, font: pygame.font.Font, x: float, size: float

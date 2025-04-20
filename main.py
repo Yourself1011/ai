@@ -1,113 +1,174 @@
+import math
+from pygame import KEYDOWN
 from network import Network
 from random import randint
-import pygame
+from time import time
 
-iterations = 10000
+# iterations = 10000
 batchSize = 32
 tests = 32
-# iterations = 2
+
+iterations = 1
 # batchSize = 1
-# tests = 32
+# tests = 0
+
 learningRate = 0.1
 
-network = Network([8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 5])
+network = Network([8, 16, 5])
+# network = Network([3, 3, 2])
 # network = Network([2, 2, 1])
 
-for i in range(iterations):
-    avgError = 0
-    for j in range(batchSize):
+ffTime = 0
+bpTime = 0
+
+iterationsRun = 0
+
+
+def train(iterations: int, training=True, verbose=False):
+    global ffTime, bpTime
+    passed = 0
+    for _ in range(iterations):
+        # full adder
+        # a = randint(0, 1)
+        # b = randint(0, 1)
+        # c = randint(0, 1)
+        # result = a + b + c
+        # start = time()
+        # network.feedForward(input=[a, b, c])
+        # ffTime += time() - start
+        # start = time()
+        # if training:
+        #     network.backPropagate([float(x) for x in f"{result:02b}"])
+        # bpTime += time() - start
+
+        # 4-bit adder
         a = randint(0, 0b1111)
         b = randint(0, 0b1111)
         # a = 0b0001
         # b = 0b0001
         result = a + b
+        start = time()
         network.feedForward(
             input=[float(x) for x in f"{a:04b}"] + [float(x) for x in f"{b:04b}"]
         )
-        network.backPropagate([float(x) for x in f"{result:05b}"])
+        ffTime += time() - start
+        start = time()
+        if training:
+            network.backPropagate([float(x) for x in f"{result:05b}"])
+        bpTime += time() - start
 
+        # xor
         # a = randint(0, 1)
         # b = randint(0, 1)
         # result = a ^ b
         # network.feedForward([a, b])
-        # network.backPropagate([result])
+        # if training:
+        #     network.backPropagate([result])
 
         # for layer in network.layers:
         #     print([x.a for x in layer.nodes])
 
-        outputNodes = [x.a for x in network.layers[-1].nodes]
+        outputNodes = network.a[-1][: network.sizes[-1]]
         output = 0
         for bit in outputNodes:
             output = (output << 1) | round(bit)
 
-        # print(a, b, result, output, outputNodes)
-        # print(input, output, outputNodes)
-    # gradient descent
-    for l in range(len(network.layers) - 1, 0, -1):
-        for node in network.layers[l].nodes:
-            node.update(learningRate, batchSize)
+        if verbose:
+            print(a, b, result, output, outputNodes)
+            # print(input, output, outputNodes)
+        if result == output:
+            passed += 1
 
-    if not i % 100:
-        print(str(i) + "/" + str(iterations))
-    # print()
-for i in range(tests):
-    a = randint(0, 0b1111)
-    b = randint(0, 0b1111)
-    # a = 0b0001
-    # b = 0b0001
-    result = a + b
-    network.feedForward(
-        input=[float(x) for x in f"{a:04b}"] + [float(x) for x in f"{b:04b}"]
-    )
+    if training:
+        network.gradientDescent(learningRate, batchSize)
 
-    # a = randint(0, 1)
-    # b = randint(0, 1)
-    # result = a ^ b
-    # network.feedForward([a, b])
+    return passed
 
-    # for layer in network.layers:
-    #     print([x.a for x in layer.nodes])
 
-    outputNodes = [x.a for x in network.layers[-1].nodes]
-    output = 0
-    for bit in outputNodes:
-        output = (output << 1) | round(bit)
+if __name__ == "__main__":
+    import pygame
 
-    print(a, b, result, output, outputNodes)
-    # print(input, output, outputNodes)
+    for i in range(iterations):
+        train(batchSize)
 
-pygame.init()
-screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
-clock = pygame.time.Clock()
-running = True
-font = pygame.font.SysFont("Poppins", 18)
+        if not iterationsRun % 100:
+            print(str(iterationsRun) + "/" + str(iterations))
+        # print()
+        iterationsRun += 1
 
-while running:
-    # poll for events
-    # pygame.QUIT event means the user clicked X to close your window
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        elif event.type == pygame.MOUSEWHEEL:
-            for node in network.layers[0].nodes:
-                if (
-                    pygame.Vector2(pygame.mouse.get_pos()).distance_squared_to(
-                        pygame.Vector2(node.x, node.y)
-                    )
-                    < node.size**2
-                ):
-                    node.a += event.y / 100
-                    node.a = max(min(node.a, 1), 0)
-                    network.feedForward()
+    passed = train(tests, training=False, verbose=True)
 
-    # fill the screen with a color to wipe away anything from last frame
-    screen.fill("black")
+    if tests:
+        print(f"{passed}/{tests} tests passed ({round(passed / tests * 100, 2)}%)")
+    print(ffTime, bpTime)
 
-    network.draw(screen, font)
+    pygame.init()
+    screen = pygame.display.set_mode((1280, 720), pygame.RESIZABLE)
+    clock = pygame.time.Clock()
+    running = True
+    font = pygame.font.SysFont("Poppins", 18)
+    training = False
+    speed = 128
 
-    # flip() the display to put your work on screen
-    pygame.display.flip()
+    while running:
+        # poll for events
+        # pygame.QUIT event means the user clicked X to close your window
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEWHEEL:
+                for node in network.layers[0].nodes:
+                    if (
+                        pygame.Vector2(pygame.mouse.get_pos()).distance_squared_to(
+                            pygame.Vector2(node.x, node.y)
+                        )
+                        < node.size**2
+                    ):
+                        network.a[node.layerNum][node.nodeNum] += event.y / 100
+                        network.a[node.layerNum][node.nodeNum] = max(
+                            min(network.a[node.layerNum][node.nodeNum], 1), 0
+                        )
+                        network.feedForward()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    training = not training
+                elif event.key == pygame.K_n:
+                    train(batchSize)
 
-    clock.tick(60)  # limits FPS to 60
+                    if not iterationsRun % 100:
+                        print(str(iterationsRun) + "/" + str(iterations))
+                    iterationsRun += 1
+                elif event.key == pygame.K_EQUALS:
+                    speed *= 2
+                elif event.key == pygame.K_MINUS:
+                    speed //= 2
+                    speed = max(speed, 1)
 
-pygame.quit()
+        # fill the screen with a color to wipe away anything from last frame
+        screen.fill("black")
+
+        text = font.render(f"{iterationsRun} {speed}", True, [255, 255, 255])
+        screen.blit(text, (5, 1))
+        network.draw(screen, font)
+
+        if training:
+            for _ in range(speed):
+                train(batchSize)
+
+                if not iterationsRun % 100:
+                    print(str(iterationsRun) + "/" + str(iterations))
+                if not iterationsRun % 1000:
+                    passed = train(tests, training=False)
+
+                    if tests:
+                        print(
+                            f"{passed}/{tests} tests passed ({round(passed / tests * 100, 2)}%)"
+                        )
+                iterationsRun += 1
+
+        # flip() the display to put your work on screen
+        pygame.display.flip()
+
+        clock.tick(60)  # limits FPS to 60
+
+    pygame.quit()
