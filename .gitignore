@@ -172,3 +172,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# definitely wouldn't want to leak all my dms
+*data.txt
+*data.json

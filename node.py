@@ -79,6 +79,12 @@ class Node:
 
         text = font.render(str(round(self.a, 3)), True, [255, 255, 255])
         screen.blit(text, (self.x - text.get_width() / 2, self.y + size + 1))
+        # text = font.render(
+        #     "b: " + str(round(self.network.biases[self.layerNum][self.nodeNum], 3)),
+        #     True,
+        #     [255, 255, 255],
+        # )
+        # screen.blit(text, (self.x - text.get_width() / 2, self.y + size + 19))
 
         gfxdraw.filled_circle(
             screen,
@@ -109,3 +115,14 @@ class Node:
                     # width=abs(round((sigmoid(self.weights[i]) - 0.5) * size / 5)),
                     width=abs(math.ceil(self.weights[i] * size / 50)),
                 )
+        # text = font.render(
+        #     ",".join(
+        #         [
+        #             str(round(x, 3))
+        #             for x in self.network.weights[self.layerNum][self.nodeNum]
+        #         ]
+        #     ),
+        #     True,
+        #     [255, 255, 255] if self.a < 0.5 else [0, 0, 0],
+        # )
+        # screen.blit(text, (self.x - text.get_width() / 2, self.y))

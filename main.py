@@ -6,7 +6,7 @@ from time import time
 
 # iterations = 10000
 batchSize = 32
-tests = 32
+tests = 4096
 
 iterations = 1
 # batchSize = 1
