@@ -1,5 +1,6 @@
 import json
 from os import error
+import os
 from typing import Tuple
 import regex as re
 
@@ -94,8 +95,8 @@ def encode(text: str, merges: dict[Tuple[int, int], int]) -> list[int]:
         [specialTokens[x]] if re.match(specialRegex, x) else list(x.encode("utf-8"))
         for x in chunks
     ]
-    print(chunks)
-    print(ids)
+    # print(chunks)
+    # print(ids)
 
     for pair, newId in merges.items():
         for i in range(len(ids)):
@@ -121,13 +122,14 @@ def decode(ids: list[int], vocab: dict[int, bytes]):
 if __name__ == "__main__":
     merges = {}
     vocab = {}
-    with open("tokenizerData.json", "r") as file:
-        failed = False
-        data = {}
-        try:
+    failed = False
+    data = {}
+    try:
+        with open("data/tokenizerData.json", "r") as file:
             data = json.load(file)
-        except Exception:
-            failed = True
+    except FileNotFoundError:
+        failed = True
+
     if not failed and "merges" in data and "vocab" in data:
         jsonMerges = data["merges"]
         for k, v in jsonMerges.items():
@@ -138,8 +140,12 @@ if __name__ == "__main__":
 
     else:
         print("no previous tokenizer data found, making new one")
-        with open("data.txt", "r") as file:
-            (merges, vocab) = tokenizer(file.read(), 50257)
+        data = ""
+        for root, _, files in os.walk("data/training"):
+            for name in files:
+                with open(os.path.join(root, name), "r") as file:
+                    data += file.read()
+        (merges, vocab) = tokenizer(data, 50257)
 
         with open("tokenizerData.json", "w") as file:
             jsonMerges = {}
@@ -152,8 +158,12 @@ if __name__ == "__main__":
 
     # print(merges)
     # print(vocab)
+    # encoded = encode(
+    #     "hello world donald duck jef codes le fang yin gary garf510 obama skibidi according to all known laws of aviation, there is no way a bee should be able to fly. Its wings are too small to get its fat little body off the ground. But the bee flies anyway, because bees don't care what humans think. Somebody once told me the world was gonna roll me, but I ain't the sharpest tool in the shed <|endoftext|>",
+    #     merges,
+    # )
     encoded = encode(
-        "hello world donald duck jef codes le fang yin gary garf510 obama skibidi<|endoftext|>",
+        input(),
         merges,
     )
     print(encoded)

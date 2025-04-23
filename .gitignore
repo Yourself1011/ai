@@ -174,5 +174,4 @@ cython_debug/
 .pypirc
 
 # definitely wouldn't want to leak all my dms
-*data.txt
-*data.json
+data/
