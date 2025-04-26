@@ -1,6 +1,7 @@
 import json
 from os import error
 import os
+from time import time
 from typing import Tuple
 import regex as re
 
@@ -44,7 +45,7 @@ def tokenizer(
         pairs = {}
         for c in list(unsaturated):
             chunk = ids[c]
-            if len(chunk) == 0:
+            if len(chunk) == 1:
                 unsaturated.remove(c)
                 continue
             for j in range(len(chunk) - 1):
@@ -119,11 +120,12 @@ def decode(ids: list[int], vocab: dict[int, bytes]):
     return b"|".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
 
 
-if __name__ == "__main__":
+def load():
     merges = {}
     vocab = {}
     failed = False
     data = {}
+    start = time()
     try:
         with open("data/tokenizerData.json", "r") as file:
             data = json.load(file)
@@ -137,6 +139,7 @@ if __name__ == "__main__":
         jsonVocab = data["vocab"]
         for k, v in jsonVocab.items():
             vocab[int(k)] = bytes(v)
+        print(f"loaded tokens in {time() - start}ms")
 
     else:
         print("no previous tokenizer data found, making new one")
@@ -147,7 +150,7 @@ if __name__ == "__main__":
                     data += file.read()
         (merges, vocab) = tokenizer(data, 50257)
 
-        with open("tokenizerData.json", "w") as file:
+        with open("data/tokenizerData.json", "w") as file:
             jsonMerges = {}
             for k, v in merges.items():
                 jsonMerges[",".join(map(str, k))] = v
@@ -155,6 +158,12 @@ if __name__ == "__main__":
             for k, v in vocab.items():
                 jsonVocab[k] = list(v)
             json.dump({"merges": jsonMerges, "vocab": jsonVocab}, file)
+
+    return (merges, vocab)
+
+
+if __name__ == "__main__":
+    (merges, vocab) = load()
 
     # print(merges)
     # print(vocab)

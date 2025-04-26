@@ -47,24 +47,6 @@ class Network:
         # print(self.biases)
 
     def backPropagate(self, target: list[float]):
-        # errors = np.zeros((len(self.sizes), self.maxSize))
-        # weightErrors = np.zeros((len(self.sizes), self.maxSize, self.maxSize))
-        # biasErrors = np.zeros((len(self.sizes), self.maxSize))
-        #
-        # for i in range(len(self.layers[-1].nodes)):
-        #     errors[-1, i] = 2 * (self.a[-1, i] - target[i])
-        #
-        # for i in range(len(self.layers) - 1, 0, -1):
-        #     for j in range(len(self.layers[i].nodes)):
-        #         coefficient = errors[i, j] * self.a[i, j] * (1 - self.a[i, j])
-        #
-        #         for k in range(len(self.weights[i, j])):
-        #             weightErrors[i, j, k] += coefficient * self.a[i - 1, k]
-        #
-        #             errors[i - 1, k] += coefficient * self.weights[i, j, k]
-        #
-        #         biasErrors[i, j] += coefficient
-
         target += [0] * (self.maxSize - len(target))
         # print(self.a)
         # print(self.weights)

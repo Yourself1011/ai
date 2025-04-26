@@ -18,6 +18,9 @@ network = Network([8, 16, 5])
 # network = Network([3, 3, 2])
 # network = Network([2, 2, 1])
 
+# llm stuff
+embedding = Network([1, 768])
+
 ffTime = 0
 bpTime = 0
 
