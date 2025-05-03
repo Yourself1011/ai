@@ -120,12 +120,11 @@ def decode(ids: list[int], vocab: dict[int, bytes]):
     return b"|".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
 
 
-def load():
+def load(vocabSize: int):
     merges = {}
     vocab = {}
     failed = False
     data = {}
-    start = time()
     try:
         with open("data/tokenizerData.json", "r") as file:
             data = json.load(file)
@@ -139,7 +138,6 @@ def load():
         jsonVocab = data["vocab"]
         for k, v in jsonVocab.items():
             vocab[int(k)] = bytes(v)
-        print(f"loaded tokens in {time() - start}ms")
 
     else:
         print("no previous tokenizer data found, making new one")
@@ -148,7 +146,7 @@ def load():
             for name in files:
                 with open(os.path.join(root, name), "r") as file:
                     data += file.read()
-        (merges, vocab) = tokenizer(data, 50257)
+        (merges, vocab) = tokenizer(data, vocabSize)
 
         with open("data/tokenizerData.json", "w") as file:
             jsonMerges = {}
@@ -163,7 +161,7 @@ def load():
 
 
 if __name__ == "__main__":
-    (merges, vocab) = load()
+    (merges, vocab) = load(50257)
 
     # print(merges)
     # print(vocab)

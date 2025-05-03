@@ -3,19 +3,28 @@ import numpy as np
 
 
 class Embedding(Layer):
-    def __init__(self, vocabSize: int, embedDim: int):
+    def __init__(self, vocabSize: int, embedDim: int, contextSize: int):
         self.embedDim = embedDim
-        self.matrix = np.random.normal(size=(vocabSize, embedDim))
-        self.a = np.array([])
+        self.vocabSize = vocabSize
+        self.words = np.random.normal(size=(vocabSize, embedDim))
+        self.positions = np.random.normal(size=(contextSize, embedDim))
+        self.contextSize = contextSize
+        self.wordsError = np.zeros((vocabSize, embedDim))
+        self.positionsError = np.zeros((contextSize, embedDim))
+        self.a = np.empty((contextSize, embedDim))
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
-        self.a = np.zeros((len(lastLayer), self.embedDim))
-        for i in range(len(lastLayer)):
-            self.a[i] = self.matrix[lastLayer[i]]
+        for i in range(self.contextSize):
+            self.a[i] = self.words[lastLayer[i]] + self.positions[i]
 
     def backProp(self, error: np.typing.NDArray):
-        self.error += error
+        for i in range(self.contextSize):
+            self.wordsError[self.input[i]] += error[i]
+            self.positionsError[i] += error[i]
 
     def gradientDescent(self, learningRate: float, batchSize: int):
-        self.matrix -= self.error * learningRate / batchSize
+        self.words -= self.wordsError * learningRate / batchSize
+        self.positions -= self.positionsError * learningRate / batchSize
+        self.wordsError = np.zeros((self.vocabSize, self.embedDim))
+        self.positionsError = np.zeros((self.contextSize, self.embedDim))
