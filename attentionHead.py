@@ -30,7 +30,6 @@ class AttentionHead(Layer):
         )
 
         # softmax
-        print((attentionPattern).shape)
         exp = math.e ** (
             attentionPattern - attentionPattern.max(0)
         )  # we subtract the highest number, to keep values from getting too big
@@ -43,5 +42,3 @@ class AttentionHead(Layer):
         # ).sum(1)
 
         self.a = (weights @ (lastLayer @ self.valueDown)) @ self.valueUp
-
-        print(self.a)
