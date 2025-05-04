@@ -1,6 +1,7 @@
 from attention import Attention
 from attentionHead import AttentionHead
 from embedding import Embedding
+from mlp import Mlp
 from tokenizer import encode, load
 import numpy as np
 
@@ -43,6 +44,8 @@ class LLM:
             for _ in range(layerCount)
         ]
 
+        self.mlps = [Mlp(self.contextSize, self.embedDim) for _ in range(layerCount)]
+
     def feedForward(self, input: str):
         tokens = np.array(encode(input, self.merges))[: self.contextSize]
         tokens = np.pad(tokens, (max(0, self.contextSize - len(tokens)), 0))
@@ -52,7 +55,10 @@ class LLM:
         for i in range(self.layerCount):
             self.attentions[i].feedForward(lastLayer)
             lastLayer = self.attentions[i].a
-            print(lastLayer.shape)
+            self.mlps[i].feedForward((lastLayer))
+            lastLayer = self.mlps[i].a
+
+        print(lastLayer)
 
 
 if __name__ == "__main__":
