@@ -1,9 +1,12 @@
+import random
 from attention import Attention
 from attentionHead import AttentionHead
 from embedding import Embedding
 from mlp import Mlp
-from tokenizer import encode, load
+from tokenizer import decode, encode, load
 import numpy as np
+
+from utils import layerNorm, softmax
 
 
 # gpt-2 124m hyperparams
@@ -29,6 +32,8 @@ class LLM:
         (self.merges, self.vocab) = load(vocabSize)
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
+        self.g = np.ones((contextSize, embedDim))
+        self.b = np.zeros((contextSize, embedDim))
 
         attentionMask = np.full((self.contextSize, self.contextSize), False)
         for i in range(self.contextSize):
@@ -45,12 +50,15 @@ class LLM:
         ]
 
         self.mlps = [Mlp(self.contextSize, self.embedDim) for _ in range(layerCount)]
+        self.a = np.empty((contextSize, vocabSize))
+        self.inputLength = 0
 
     def feedForward(self, input: str):
         tokens = np.array(encode(input, self.merges))[: self.contextSize]
-        tokens = np.pad(tokens, (max(0, self.contextSize - len(tokens)), 0))
+        self.inputLength = len(tokens)
+        tokens = np.pad(tokens, (0, max(0, self.contextSize - len(tokens))))
         self.embedding.feedForward(tokens)
-        lastLayer = self.embedding.a
+        lastLayer = layerNorm(self.embedding.a, self.g, self.b)
 
         for i in range(self.layerCount):
             self.attentions[i].feedForward(lastLayer)
@@ -58,10 +66,24 @@ class LLM:
             self.mlps[i].feedForward((lastLayer))
             lastLayer = self.mlps[i].a
 
-        print(lastLayer)
+        # print(lastLayer)
+        self.embedding.decode(lastLayer)
+        self.a = self.embedding.decoded
+        # print(self.a.shape)
+
+    def getToken(self, index: int, T: float):
+        probabilities = softmax(self.a[index], T=T)
+        n = random.random()
+        i = 0
+        while n > 0:
+            n -= probabilities[i]
+            i += 1
+
+        return i
 
 
 if __name__ == "__main__":
     llm = LLM(50257, 768, 1024, 12, 12)
     # llm = LLM(50257, 8, 10, 2)
-    llm.feedForward("hello world")
+    llm.feedForward(input())
+    print(decode([llm.getToken(llm.inputLength - 1, 1)], llm.vocab))

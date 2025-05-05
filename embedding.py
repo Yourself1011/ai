@@ -12,11 +12,15 @@ class Embedding(Layer):
         self.wordsError = np.zeros((vocabSize, embedDim))
         self.positionsError = np.zeros((contextSize, embedDim))
         self.a = np.empty((contextSize, embedDim))
+        self.decoded = np.empty(vocabSize)
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
         for i in range(self.contextSize):
             self.a[i] = self.words[lastLayer[i]] + self.positions[i]
+
+    def decode(self, lastLayer: np.typing.NDArray):
+        self.decoded = lastLayer @ self.words.T
 
     def backProp(self, error: np.typing.NDArray):
         for i in range(self.contextSize):

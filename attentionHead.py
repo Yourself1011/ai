@@ -2,6 +2,8 @@ import math
 from llmlayer import Layer
 import numpy as np
 
+from utils import softmax
+
 
 class AttentionHead(Layer):
     def __init__(
@@ -27,13 +29,9 @@ class AttentionHead(Layer):
             # ).sum(2),
             (lastLayer @ self.query) @ (lastLayer @ self.key).T,
             -math.inf,
-        )
+        ) / (np.sqrt(self.embedDim))
 
-        # softmax
-        exp = math.e ** (
-            attentionPattern - attentionPattern.max(0)
-        )  # we subtract the highest number, to keep values from getting too big
-        weights = exp / exp.sum(0) / (np.sqrt(self.embedDim))
+        weights = softmax(attentionPattern)
         # value = np.matmul(lastLayer, np.matmul(self.valueUp, self.valueDown))
         # print("alskdjf")
         # change = (
