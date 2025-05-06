@@ -1,4 +1,5 @@
 import random
+import time
 from attention import Attention
 from attentionHead import AttentionHead
 from embedding import Embedding
@@ -85,5 +86,9 @@ class LLM:
 if __name__ == "__main__":
     llm = LLM(50257, 768, 1024, 12, 12)
     # llm = LLM(50257, 8, 10, 2)
-    llm.feedForward(input())
-    print(decode([llm.getToken(llm.inputLength - 1, 1)], llm.vocab))
+    message = input()
+    while True:
+        llm.feedForward(message)
+        new = decode([llm.getToken(llm.inputLength - 1, 5)], llm.vocab)
+        print(new, end="", flush=True)
+        message += new

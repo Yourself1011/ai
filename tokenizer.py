@@ -117,7 +117,7 @@ def encode(text: str, merges: dict[Tuple[int, int], int]) -> list[int]:
 
 
 def decode(ids: list[int], vocab: dict[int, bytes]):
-    return b"|".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
+    return b"".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
 
 
 def load(vocabSize: int):
