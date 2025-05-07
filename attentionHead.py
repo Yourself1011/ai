@@ -12,10 +12,13 @@ class AttentionHead(Layer):
         self.embedDim = embedDim
         self.headCount = headCount
         self.mask = mask
-        self.query = np.random.normal(0, 1, (embedDim, embedDim // headCount))
-        self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
-        self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
-        self.valueUp = np.random.normal(0, 1, (embedDim // headCount, embedDim))
+        # self.query = np.random.normal(0, 1, (embedDim, embedDim // headCount))
+        # self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
+        # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
+        # self.valueUp = np.random.normal(0, 1, (embedDim // headCount, embedDim))
+        self.query: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.key: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.value: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
         self.a = np.empty((contextSize, embedDim))
 
     def feedForward(self, lastLayer: np.typing.NDArray):
@@ -27,8 +30,8 @@ class AttentionHead(Layer):
             #         contextSize, 1, self.embedDim // self.headCount
             #     )
             # ).sum(2),
-            (lastLayer @ self.query) @ (lastLayer @ self.key).T,
-            -math.inf,
+            self.query @ self.key.T,
+            -np.inf,
         ) / (np.sqrt(self.embedDim))
 
         weights = softmax(attentionPattern)
@@ -39,4 +42,4 @@ class AttentionHead(Layer):
         #     * weights.reshape(contextSize, contextSize, 1)
         # ).sum(1)
 
-        self.a = (weights @ (lastLayer @ self.valueDown)) @ self.valueUp
+        self.a = weights @ self.value

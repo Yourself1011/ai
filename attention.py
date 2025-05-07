@@ -15,17 +15,29 @@ class Attention(Layer):
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
+        self.headCount = headCount
         self.heads = [
             AttentionHead(contextSize, embedDim, headCount, mask)
             for _ in range(headCount)
         ]
+
+        self.kqv = np.random.normal(0, 1, (embedDim, embedDim * 3))
+        self.proj = np.random.normal(0, 1, (embedDim, embedDim))
+
         self.g = np.ones((contextSize, embedDim))
         self.b = np.zeros((contextSize, embedDim))
 
     def feedForward(self, lastLayer: np.typing.NDArray):
-        self.a = lastLayer.copy()
-        for head in self.heads:
-            head.feedForward(lastLayer)
-            self.a += head.a
+        q, k, v = [
+            np.split(x, self.headCount, axis=1)
+            for x in np.split(lastLayer @ self.kqv, 3, axis=1)
+        ]
+        attentionOutputs = []
+        for i in range(len(self.heads)):
+            self.heads[i].query = q[i]
+            self.heads[i].key = k[i]
+            self.heads[i].value = v[i]
+            self.heads[i].feedForward(lastLayer)
+            attentionOutputs.append(self.heads[i].a)
 
-        self.a = layerNorm(self.a, self.g, self.b)
+        self.a = layerNorm(np.hstack(attentionOutputs) @ self.proj, self.g, self.b)
