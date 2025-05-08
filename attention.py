@@ -21,16 +21,16 @@ class Attention(Layer):
             for _ in range(headCount)
         ]
 
-        self.kqv = np.random.normal(0, 1, (embedDim, embedDim * 3))
+        self.qkv = np.random.normal(0, 1, (embedDim, embedDim * 3))
         self.proj = np.random.normal(0, 1, (embedDim, embedDim))
 
-        self.g = np.ones((contextSize, embedDim))
-        self.b = np.zeros((contextSize, embedDim))
+        self.g: np.typing.NDArray = np.ones((contextSize, embedDim))
+        self.b: np.typing.NDArray = np.zeros((contextSize, embedDim))
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         q, k, v = [
             np.split(x, self.headCount, axis=1)
-            for x in np.split(lastLayer @ self.kqv, 3, axis=1)
+            for x in np.split(lastLayer @ self.qkv, 3, axis=1)
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):

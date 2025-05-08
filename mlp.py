@@ -10,13 +10,16 @@ class Mlp(Layer):
         contextSize: int,
         embedDim: int,
     ) -> None:
-        self.w = (
+        self.w: tuple[np.typing.NDArray, np.typing.NDArray] = (
             np.random.normal(0, 1, (embedDim, 4 * embedDim)),
             np.random.normal(0, 1, (4 * embedDim, embedDim)),
         )
-        self.b = (np.zeros(4 * embedDim), np.zeros(embedDim))
-        self.g = np.ones((contextSize, embedDim))
-        self.beta = np.zeros((contextSize, embedDim))
+        self.b: tuple[np.typing.NDArray, np.typing.NDArray] = (
+            np.zeros(4 * embedDim),
+            np.zeros(embedDim),
+        )
+        self.g: np.typing.NDArray = np.ones((contextSize, embedDim))
+        self.beta: np.typing.NDArray = np.zeros((contextSize, embedDim))
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.a = lastLayer @ self.w[0] + self.b[0]
