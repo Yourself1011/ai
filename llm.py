@@ -7,7 +7,6 @@ from embedding import Embedding
 from mlp import Mlp
 from tokenizer import decode, encode, load
 import numpy as np
-
 from utils import layerNorm, softmax
 
 
@@ -54,6 +53,7 @@ class LLM:
         self.mlps = [Mlp(self.contextSize, self.embedDim) for _ in range(layerCount)]
         self.a = np.empty((contextSize, vocabSize))
         self.inputLength = 0
+        self.loss = np.ones((self.contextSize, self.vocabSize))
 
     def save(self):
         attnqkv = []
@@ -123,10 +123,12 @@ class LLM:
         # print(self.attentions[3].proj[23][35])
 
     def feedForward(self, input: str):
-        tokens = np.array(encode(input, self.merges))[: self.contextSize]
-        self.inputLength = len(tokens)
-        tokens = np.pad(tokens, (0, max(0, self.contextSize - len(tokens))))
-        self.embedding.feedForward(tokens)
+        self.tokens = np.array(encode(input, self.merges))[: self.contextSize]
+        self.inputLength = len(self.tokens)
+        self.tokens = np.pad(
+            self.tokens, (0, max(0, self.contextSize - len(self.tokens)))
+        )
+        self.embedding.feedForward(self.tokens)
         lastLayer = layerNorm(self.embedding.a, self.g, self.b)
         # print(self.embedding.a)
 
@@ -147,6 +149,31 @@ class LLM:
         self.embedding.decode(lastLayer)
         self.a = self.embedding.decoded
         # print(self.a)
+
+    def backProp(self):
+        probabilities = softmax(self.a)
+        error = np.zeros((self.contextSize, self.vocabSize))
+
+        # - 1/s(xi) * (s(xi) * (1 - s(xi) - sum(s(xj))))
+        # = s(xi) + sum(s(xj)) - 1
+        error = np.where(
+            np.arange(self.contextSize).reshape(self.contextSize, 1) < self.inputLength,
+            probabilities + probabilities.sum(-1).reshape(self.contextSize, 1) - 1,
+            0,
+        )
+        self.embedding.decodeBackProp(error)
+        # print(probabilities[1][self.tokens[1]])
+        # print(error[1][self.tokens[1]])
+
+    def getLoss(self):
+        probabilities = softmax(self.a)
+        self.loss = np.zeros((self.contextSize, self.vocabSize))
+
+        for i in range(self.inputLength):
+            self.loss[i][self.tokens[i]] = -np.log(probabilities[i][self.tokens[i]])
+
+    def gradientDescent(self, learningRate: float, batchSize: int):
+        self.embedding.gradientDescent(learningRate, batchSize)
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
@@ -170,16 +197,29 @@ if __name__ == "__main__":
     else:
         print(f"loaded params {time.time() - start}s")
     # llm = LLM(50257, 8, 10, 2)
-    # message = input("> ")
-    message = "hello world"
-    temperature = 5
-    i = 0
-    while True:
-        if not i % 100:
-            llm.save()
 
-        llm.feedForward(message)
-        new = decode([llm.getToken(llm.inputLength - 1, temperature)], llm.vocab)
-        print(new, end="", flush=True)
-        # message += new
-        i += 1
+    # message = input("> ")
+    # message = "hello world"
+    # temperature = 1
+    # i = 0
+    # while True:
+    #     if not i % 100:
+    #         llm.save()
+    #
+    #     llm.feedForward(message)
+    #     llm.backProp()
+    #     new = decode([llm.getToken(llm.inputLength - 1, temperature)], llm.vocab)
+    #     print(new, end="", flush=True)
+    #     # message += new
+    #     i += 1
+
+    temperature = 1
+
+    while True:
+        llm.feedForward("hello world")
+        new = decode([llm.getToken(llm.inputLength - 2, temperature)], llm.vocab)
+        llm.backProp()
+        llm.getLoss()
+        llm.gradientDescent(1, 1)
+        print("guess:", new, "loss", llm.loss.sum())
+        llm.save()
