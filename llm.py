@@ -175,7 +175,7 @@ class LLM:
             self.loss[i][self.tokens[i]] = -np.log(probabilities[i][self.tokens[i]])
 
     def gradientDescent(self, learningRate: float, batchSize: int):
-        # self.embedding.gradientDescent(learningRate, batchSize)
+        self.embedding.gradientDescent(learningRate, batchSize)
         self.mlps[-1].gradientDescent(learningRate, batchSize)
 
     def getToken(self, index: int, T: float):
@@ -223,6 +223,6 @@ if __name__ == "__main__":
         new = decode([llm.getToken(llm.inputLength - 2, temperature)], llm.vocab)
         llm.backProp()
         llm.getLoss()
-        llm.gradientDescent(1, 1)
+        llm.gradientDescent(0.01, 1)
         print("guess:", new, "loss", llm.loss.sum())
         # llm.save()

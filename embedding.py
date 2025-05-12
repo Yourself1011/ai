@@ -31,12 +31,13 @@ class Embedding(Layer):
         self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error: np.typing.NDArray):
-        self.wordsError += (self.decodeInput.T @ error).T
+        # self.wordsError += (self.decodeInput.T @ error).T
+        self.wordsError += error.T @ self.decodeInput
         self.error += error @ self.words
 
     def gradientDescent(self, learningRate: float, batchSize: int):
-        self.words -= self.wordsError * learningRate / batchSize
-        self.positions -= self.positionsError * learningRate / batchSize
+        # self.words -= self.wordsError * learningRate / batchSize
+        # self.positions -= self.positionsError * learningRate / batchSize
         self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))
         self.positionsError = np.zeros((self.contextSize, self.embedDim))
