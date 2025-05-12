@@ -19,10 +19,11 @@ def layerNorm(x: np.typing.NDArray, g: np.typing.NDArray, b: np.typing.NDArray):
     mean = np.mean(x, axis=-1, keepdims=True)
     var = np.var(x, axis=-1, keepdims=True)
 
-    result = (x - mean) / np.sqrt(var + 0.000001) * g + b
+    z = (x - mean) / np.sqrt(var + 0.000001)
+    result = z * g + b
     # print(result.var(axis=-1))
     # print(result.mean(axis=-1))
-    return result
+    return result, z
 
 
 def softmax(x, T: float = 1):
