@@ -116,8 +116,8 @@ class LLM:
             self.attentions[i].proj = data["attnproj"][i]
             self.attentions[i].g = data["attng"][i]
             self.attentions[i].b = data["attnb"][i]
-            self.mlps[i].w = (data["mlpw0"][i], data["mlpw1"][i])
-            self.mlps[i].b = (data["mlpb0"][i], data["mlpb1"][i])
+            self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
+            self.mlps[i].b = [data["mlpb0"][i], data["mlpb1"][i]]
             self.mlps[i].g = data["mlpg"][i]
             self.mlps[i].beta = data["mlpbeta"][i]
         # print(self.attentions[3].proj[23][35])
@@ -129,7 +129,7 @@ class LLM:
             self.tokens, (0, max(0, self.contextSize - len(self.tokens)))
         )
         self.embedding.feedForward(self.tokens)
-        lastLayer, _ = layerNorm(self.embedding.a, self.g, self.b)
+        lastLayer, *_ = layerNorm(self.embedding.a, self.g, self.b)
         # print(self.embedding.a)
 
         # attnTime = 0

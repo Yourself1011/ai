@@ -40,4 +40,4 @@ class Attention(Layer):
             self.heads[i].feedForward(lastLayer)
             attentionOutputs.append(self.heads[i].a)
 
-        self.a, _ = layerNorm(np.hstack(attentionOutputs) @ self.proj, self.g, self.b)
+        self.a, *_ = layerNorm(np.hstack(attentionOutputs) @ self.proj, self.g, self.b)
