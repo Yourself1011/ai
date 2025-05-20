@@ -163,7 +163,13 @@ class LLM:
         )
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
-        self.mlps[-1].backProp(error)
+
+        for i in range(1):
+            self.mlps[self.layerCount - i - 1].backProp(error)
+            error = self.mlps[self.layerCount - i - 1].error
+            # self.attentions[self.layerCount - i - 1].backProp(error)
+            # error = self.attentions[self.layerCount - i - 1].error
+            # print(error.shape)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
 
@@ -176,7 +182,9 @@ class LLM:
 
     def gradientDescent(self, learningRate: float, batchSize: int):
         self.embedding.gradientDescent(learningRate, batchSize)
-        self.mlps[-1].gradientDescent(learningRate, batchSize)
+        for i in range(self.layerCount):
+            self.mlps[i].gradientDescent(learningRate, batchSize)
+            self.attentions[i].gradientDescent(learningRate, batchSize)
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
@@ -223,6 +231,6 @@ if __name__ == "__main__":
         new = decode([llm.getToken(llm.inputLength - 2, temperature)], llm.vocab)
         llm.backProp()
         llm.getLoss()
-        llm.gradientDescent(0.01, 1)
+        llm.gradientDescent(3e-4, 1)
         print("guess:", new, "loss", llm.loss.sum())
         # llm.save()

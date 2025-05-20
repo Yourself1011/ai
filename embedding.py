@@ -36,8 +36,8 @@ class Embedding(Layer):
         self.error += error @ self.words
 
     def gradientDescent(self, learningRate: float, batchSize: int):
-        self.words -= self.wordsError * learningRate / batchSize
-        self.positions -= self.positionsError * learningRate / batchSize
+        # self.words -= self.wordsError * learningRate / batchSize
+        # self.positions -= self.positionsError * learningRate / batchSize
         self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))
         self.positionsError = np.zeros((self.contextSize, self.embedDim))
