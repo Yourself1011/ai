@@ -160,11 +160,17 @@ class LLM:
 
         # - 1/s(xi) * (s(xi) * (1 - s(xi) - sum(s(xj))))
         # = s(xi) + sum(s(xj)) - 1
-        error = np.where(
-            np.arange(self.contextSize).reshape(self.contextSize, 1) < self.inputLength,
-            probabilities + probabilities.sum(-1).reshape(-1, 1) - 1,
-            0,
-        )
+        # = s(xi) + 1 - 1
+        # = s(xi)
+        for i in range(self.inputLength - 1):
+            error[i] = probabilities[i]
+            error[i][self.tokens[i + 1]] -= 1
+        # print(error.sum())
+        # error = np.where(
+        #     np.arange(self.contextSize).reshape(self.contextSize, 1) < self.inputLength,
+        #     probabilities,
+        #     0,
+        # )
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
 
@@ -187,8 +193,11 @@ class LLM:
         probabilities = softmax(self.a)
         self.loss = np.zeros((self.contextSize, self.vocabSize))
 
-        for i in range(self.inputLength):
-            self.loss[i][self.tokens[i]] = -np.log(probabilities[i][self.tokens[i]])
+        for i in range(self.inputLength - 1):
+            self.loss[i][self.tokens[i + 1]] = -np.log(
+                probabilities[i][self.tokens[i + 1]]
+            )
+            # print(i, probabilities[i][self.tokens[i + 1]])
 
     def gradientDescent(self, learningRate: float, batchSize: int):
         self.embedding.gradientDescent(learningRate, batchSize)
@@ -209,7 +218,7 @@ class LLM:
             n -= probabilities[i]
             i += 1
 
-        return i
+        return i - 1
 
 
 if __name__ == "__main__":
@@ -244,8 +253,8 @@ if __name__ == "__main__":
     while True:
         llm.feedForward("hello world")
         new = decode([llm.getToken(llm.inputLength - 2, temperature)], llm.vocab)
-        llm.backProp()
         llm.getLoss()
-        llm.gradientDescent(3e-4, 1)
         print("guess:", new, "loss", llm.loss.sum())
+        llm.backProp()
+        llm.gradientDescent(3e-4, 1)
         # llm.save()
