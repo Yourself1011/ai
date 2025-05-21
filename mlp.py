@@ -48,14 +48,11 @@ class Mlp(Layer):
         # derivative of layer norm
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5)
-        error *= (
-            self.g
-            * (1 / n * stdev)
-            * (n - 1 - (self.layer2 - self.mean) ** 2 / self.var)
-        )
+        error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
         # print(error.shape)
         self.bError[1] += error.sum(0)
-        # print(self.gelu.shape)
+        # print((self.gelu.T @ error).sum())
+        # print(self.gelu.shape, error.shape)
         self.wError[1] += self.gelu.T @ error
         error = (
             (error @ self.w[1].T)
@@ -77,12 +74,12 @@ class Mlp(Layer):
         # self.error += ( self.w[0] @ error.T ).T
 
     def gradientDescent(self, learningRate: float, batchSize: int):
-        # self.beta -= self.betaError * learningRate / batchSize
-        # self.g -= self.gError * learningRate / batchSize
-        # self.b[1] -= self.bError[1] * learningRate / batchSize
+        self.beta -= self.betaError * learningRate / batchSize
+        self.g -= self.gError * learningRate / batchSize
+        self.b[1] -= self.bError[1] * learningRate / batchSize
         self.w[1] -= self.wError[1] * learningRate / batchSize
-        # self.b[0] -= self.bError[0] * learningRate / batchSize
-        # self.w[0] -= self.wError[0] * learningRate / batchSize
+        self.b[0] -= self.bError[0] * learningRate / batchSize
+        self.w[0] -= self.wError[0] * learningRate / batchSize
 
         self.wError: list[np.typing.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),

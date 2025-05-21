@@ -167,8 +167,8 @@ class LLM:
         for i in range(1):
             self.mlps[self.layerCount - i - 1].backProp(error)
             error = self.mlps[self.layerCount - i - 1].error
-            # self.attentions[self.layerCount - i - 1].backProp(error)
-            # error = self.attentions[self.layerCount - i - 1].error
+            self.attentions[self.layerCount - i - 1].backProp(error)
+            error = self.attentions[self.layerCount - i - 1].error
             # print(error.shape)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])

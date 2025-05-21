@@ -59,11 +59,7 @@ class Attention(Layer):
         # derivative of layer norm
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5)
-        error *= (
-            self.g
-            * (1 / n * stdev)
-            * (n - 1 - (self.combined - self.mean) ** 2 / self.var)
-        )
+        error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
 
         self.projError += self.combined.T @ error
 
