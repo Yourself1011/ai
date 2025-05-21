@@ -35,6 +35,8 @@ class LLM:
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
         self.g = np.ones((contextSize, embedDim))
         self.b = np.zeros((contextSize, embedDim))
+        self.gError = np.ones((contextSize, embedDim))
+        self.bError = np.zeros((contextSize, embedDim))
 
         attentionMask = np.full((self.contextSize, self.contextSize), False)
         for i in range(self.contextSize):
@@ -129,7 +131,9 @@ class LLM:
             self.tokens, (0, max(0, self.contextSize - len(self.tokens)))
         )
         self.embedding.feedForward(self.tokens)
-        lastLayer, *_ = layerNorm(self.embedding.a, self.g, self.b)
+        lastLayer, self.z, self.mean, self.var = layerNorm(
+            self.embedding.a, self.g, self.b
+        )
         # print(self.embedding.a)
 
         # attnTime = 0
@@ -164,7 +168,7 @@ class LLM:
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
 
-        for i in range(1):
+        for i in range(self.layerCount):
             self.mlps[self.layerCount - i - 1].backProp(error)
             error = self.mlps[self.layerCount - i - 1].error
             self.attentions[self.layerCount - i - 1].backProp(error)
@@ -172,6 +176,12 @@ class LLM:
             # print(error.shape)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
+        self.bError += error
+        self.gError += error * self.z
+        n = error.shape[-1]
+        stdev = np.sqrt(self.var + 1e-5)
+        error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
+        self.embedding.backProp(error)
 
     def getLoss(self):
         probabilities = softmax(self.a)
@@ -185,6 +195,11 @@ class LLM:
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, batchSize)
             self.attentions[i].gradientDescent(learningRate, batchSize)
+        self.b -= self.bError * learningRate / batchSize
+        self.g -= self.gError * learningRate / batchSize
+
+        self.gError = np.ones((self.contextSize, self.embedDim))
+        self.bError = np.zeros((self.contextSize, self.embedDim))
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
