@@ -14,6 +14,7 @@ class Embedding(Layer):
         self.positionsError = np.zeros((contextSize, embedDim))
         self.a = np.empty((contextSize, embedDim))
         self.decoded = np.empty(vocabSize)
+        super().__init__()
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
@@ -35,9 +36,17 @@ class Embedding(Layer):
         self.wordsError += error.T @ self.decodeInput
         self.error += error @ self.words
 
-    def gradientDescent(self, learningRate: float, batchSize: int):
-        self.words -= self.wordsError * learningRate / batchSize
-        self.positions -= self.positionsError * learningRate / batchSize
+    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+        self.words -= (
+            self.adamW("words", self.words, self.wordsError, learningRate, t)
+            / batchSize
+        )
+        self.positions -= (
+            self.adamW(
+                "positions", self.positions, self.positionsError, learningRate, t
+            )
+            / batchSize
+        )
 
         self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))

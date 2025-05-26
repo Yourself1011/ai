@@ -1,6 +1,7 @@
 from attentionHead import AttentionHead
 from llmlayer import Layer
 import numpy as np
+from multiprocessing import Pool
 
 from utils import layerNorm
 
@@ -12,6 +13,7 @@ class Attention(Layer):
         embedDim: int,
         headCount: int,
         mask: np.typing.NDArray,
+        pool,
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
@@ -33,6 +35,8 @@ class Attention(Layer):
         self.gError: np.typing.NDArray = np.zeros((contextSize, embedDim))
         self.bError: np.typing.NDArray = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
+        self.pool = pool
+        super().__init__()
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
@@ -42,11 +46,16 @@ class Attention(Layer):
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
-            self.heads[i].query = q[i]
-            self.heads[i].key = k[i]
-            self.heads[i].value = v[i]
-            self.heads[i].feedForward(lastLayer)
+            self.heads[i].feedForward(lastLayer, q[i], k[i], v[i])
             attentionOutputs.append(self.heads[i].a)
+
+        # res = [
+        #     self.pool.apply_async(
+        #         self.heads[i].feedForward, (lastLayer, q[i], k[i], v[i])
+        #     )
+        #     for i in range(len(self.heads))
+        # ]
+        # attentionOutputs = [x.get() for x in res]
 
         self.combined = np.hstack(attentionOutputs)
         self.a, self.z, self.mean, self.var = layerNorm(
@@ -86,11 +95,15 @@ class Attention(Layer):
         # print(error.shape, self.qkv.shape)
         self.error += error @ self.qkv.T
 
-    def gradientDescent(self, learningRate: float, batchSize: int):
-        self.b -= self.bError * learningRate / batchSize
-        self.g -= self.gError * learningRate / batchSize
-        self.proj -= self.projError * learningRate / batchSize
-        self.qkv -= self.qkvError * learningRate / batchSize
+    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+        self.b -= self.adamW("b", self.b, self.bError, learningRate, t) / batchSize
+        self.g -= self.adamW("g", self.g, self.gError, learningRate, t) / batchSize
+        self.proj -= (
+            self.adamW("proj", self.proj, self.projError, learningRate, t) / batchSize
+        )
+        self.qkv -= (
+            self.adamW("qkv", self.qkv, self.qkvError, learningRate, t) / batchSize
+        )
 
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))

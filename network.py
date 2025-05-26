@@ -31,6 +31,7 @@ class Network:
         self.biasErrors = np.zeros((len(sizes), self.maxSize))
         self.z = np.zeros((len(sizes), self.maxSize))
         self.a = np.zeros((len(sizes), self.maxSize))
+        super().__init__()
 
     def feedForward(self, input: list[float] = []):
         if len(input):

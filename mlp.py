@@ -34,6 +34,7 @@ class Mlp(Layer):
         self.gError: np.typing.NDArray = np.zeros((contextSize, embedDim))
         self.betaError: np.typing.NDArray = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
+        super().__init__()
 
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
@@ -73,13 +74,23 @@ class Mlp(Layer):
         self.error += error @ self.w[0].T
         # self.error += ( self.w[0] @ error.T ).T
 
-    def gradientDescent(self, learningRate: float, batchSize: int):
-        self.beta -= self.betaError * learningRate / batchSize
-        self.g -= self.gError * learningRate / batchSize
-        self.b[1] -= self.bError[1] * learningRate / batchSize
-        self.w[1] -= self.wError[1] * learningRate / batchSize
-        self.b[0] -= self.bError[0] * learningRate / batchSize
-        self.w[0] -= self.wError[0] * learningRate / batchSize
+    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+        self.beta -= (
+            self.adamW("beta", self.beta, self.betaError, learningRate, t) / batchSize
+        )
+        self.g -= self.adamW("g", self.g, self.gError, learningRate, t) / batchSize
+        self.b[1] -= (
+            self.adamW("b1", self.b[1], self.bError[1], learningRate, t) / batchSize
+        )
+        self.w[1] -= (
+            self.adamW("w1", self.w[1], self.wError[1], learningRate, t) / batchSize
+        )
+        self.b[0] -= (
+            self.adamW("b0", self.b[0], self.bError[0], learningRate, t) / batchSize
+        )
+        self.w[0] -= (
+            self.adamW("w0", self.w[0], self.wError[0], learningRate, t) / batchSize
+        )
 
         self.wError: list[np.typing.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),
