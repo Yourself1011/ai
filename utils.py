@@ -1,9 +1,9 @@
-from math import exp
+import time
 import numpy as np
 
 
 def sigmoid(x):
-    return 1 / (1 + exp(-x))
+    return 1 / (1 + np.exp(-x))
 
 
 def sigmoidPrime(x):
@@ -20,7 +20,12 @@ def gelu(x):
     return 0.5 * x * (1 + tanh), tanh, inside
 
 
+# smTime = 0
+
+
 def layerNorm(x: np.typing.NDArray, g: np.typing.NDArray, b: np.typing.NDArray):
+    # global smTime
+    # start = time.time()
     mean = np.mean(x, axis=-1, keepdims=True)
     var = np.var(x, axis=-1, keepdims=True)
 
@@ -28,12 +33,17 @@ def layerNorm(x: np.typing.NDArray, g: np.typing.NDArray, b: np.typing.NDArray):
     result = z * g + b
     # print(result.var(axis=-1))
     # print(result.mean(axis=-1))
+    # smTime += time.time() - start
     return result, z, mean, var
 
 
 def softmax(x, T: float = 1):
-    adj = x / T
+    # global smTime
+    # start = time.time()
+    adj = x / T if T != 1 else x
     exp = np.e ** (
         adj - adj.max(-1, keepdims=True)
     )  # we subtract the highest number, to keep values from getting too big
-    return exp / exp.sum(-1, keepdims=True)
+    res = exp / exp.sum(-1, keepdims=True)
+    # smTime += time.time() - start
+    return res

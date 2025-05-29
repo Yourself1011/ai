@@ -1,7 +1,8 @@
+import time
 from llmlayer import Layer
 import numpy as np
 
-from utils import gelu, layerNorm, geluCoefficient
+from utils import gelu, layerNorm, geluCoefficient, sigmoid
 
 
 class Mlp(Layer):
@@ -39,7 +40,12 @@ class Mlp(Layer):
     def feedForward(self, lastLayer: np.typing.NDArray):
         self.input = lastLayer
         self.layer1 = lastLayer @ self.w[0] + self.b[0]
-        self.gelu, self.tanh, self.inside = gelu(self.layer1)
+        # start = time.time()
+        # self.gelu, self.tanh, self.inside = gelu(self.layer1)
+        self.multiplied = self.layer1 * 1.702
+        self.sigmoid = sigmoid(self.multiplied)
+        self.gelu = self.layer1 * self.sigmoid
+        # print(time.time() - start)
         self.layer2 = self.gelu @ self.w[1] + self.b[1]
         self.a, self.z, self.mean, self.var = layerNorm(self.layer2, self.g, self.beta)
 
@@ -55,16 +61,8 @@ class Mlp(Layer):
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
         self.wError[1] += self.gelu.T @ error
-        error = (
-            (error @ self.w[1].T)
-            * 0.5
-            * (
-                (1 + self.tanh)
-                + self.layer1
-                / np.cosh(self.inside) ** 2
-                * geluCoefficient
-                * (1 + 0.134145 * self.layer1**2)
-            )
+        error = self.sigmoid * (
+            1 + self.multiplied * (1 - self.sigmoid) * (error @ self.w[1].T)
         )
         # print(error)
         self.bError[0] += error.sum(0)
