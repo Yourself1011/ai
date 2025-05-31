@@ -1,9 +1,16 @@
 import time
 import numpy as np
+import numpy.typing as npt
+
+# smTime = 0
 
 
 def sigmoid(x):
-    return 1 / (1 + np.exp(-x))
+    # global smTime
+    # start = time.time()
+    result = 1 / (1 + np.exp(-x))
+    # smTime += time.time() - start
+    return result
 
 
 def sigmoidPrime(x):
@@ -20,10 +27,7 @@ def gelu(x):
     return 0.5 * x * (1 + tanh), tanh, inside
 
 
-# smTime = 0
-
-
-def layerNorm(x: np.typing.NDArray, g: np.typing.NDArray, b: np.typing.NDArray):
+def layerNorm(x: npt.NDArray, g: npt.NDArray, b: npt.NDArray):
     # global smTime
     # start = time.time()
     mean = np.mean(x, axis=-1, keepdims=True)

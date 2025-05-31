@@ -2,13 +2,14 @@ import math
 from typing import Tuple
 from llmlayer import Layer
 import numpy as np
+import numpy.typing as npt
 
 from utils import softmax
 
 
 class AttentionHead:
     def __init__(
-        self, contextSize: int, embedDim: int, headCount: int, mask: np.typing.NDArray
+        self, contextSize: int, embedDim: int, headCount: int, mask: npt.NDArray
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
@@ -19,27 +20,21 @@ class AttentionHead:
         # self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueUp = np.random.normal(0, 1, (embedDim // headCount, embedDim))
-        self.query: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.key: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.value: np.typing.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.query: npt.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.key: npt.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.value: npt.NDArray = np.empty((contextSize, embedDim // headCount))
         self.a = np.empty((contextSize, embedDim))
 
-        self.queryError: np.typing.NDArray = np.empty(
-            (contextSize, embedDim // headCount)
-        )
-        self.keyError: np.typing.NDArray = np.empty(
-            (contextSize, embedDim // headCount)
-        )
-        self.valueError: np.typing.NDArray = np.empty(
-            (contextSize, embedDim // headCount)
-        )
+        self.queryError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.keyError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.valueError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
 
     def feedForward(
         self,
-        lastLayer: np.typing.NDArray,
-        q: np.typing.NDArray,
-        k: np.typing.NDArray,
-        v: np.typing.NDArray,
+        lastLayer: npt.NDArray,
+        q: npt.NDArray,
+        k: npt.NDArray,
+        v: npt.NDArray,
     ):
         self.query = q
         self.key = k
@@ -68,25 +63,28 @@ class AttentionHead:
         return self.a
 
     def backProp(
-        self, error: np.typing.NDArray
-    ) -> Tuple[np.typing.NDArray, np.typing.NDArray, np.typing.NDArray]:
+        self, error: npt.NDArray
+    ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
         self.valueError = self.weights.T @ error
         error = np.where(
             self.tfMask,
-            (error @ self.value.T) * self.weights * (1 - self.weights),
+            (error @ self.value.T)
+            * self.weights
+            * (1 - self.weights)
+            / (np.sqrt(self.embedDim)),
             0,
-        ) / (np.sqrt(self.embedDim))
+        )
         self.queryError = error @ self.key
         self.keyError = (self.query.T @ error).T
         return self.queryError, self.keyError, self.valueError
 
     def gradientDescent(self, learningRate: float, batchSize: int, t):
-        self.queryError: np.typing.NDArray = np.empty(
+        self.queryError: npt.NDArray = np.empty(
             (self.contextSize, self.embedDim // self.headCount)
         )
-        self.keyError: np.typing.NDArray = np.empty(
+        self.keyError: npt.NDArray = np.empty(
             (self.contextSize, self.embedDim // self.headCount)
         )
-        self.valueError: np.typing.NDArray = np.empty(
+        self.valueError: npt.NDArray = np.empty(
             (self.contextSize, self.embedDim // self.headCount)
         )

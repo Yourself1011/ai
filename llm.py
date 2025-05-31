@@ -168,9 +168,9 @@ class LLM(LLMBase):
             lastLayer = self.attentions[i].a
             # attnTime += time.time() - start
             # start = time.time()
-            self.mlps[i].feedForward((lastLayer))
+            self.mlps[i].feedForward(lastLayer)
             lastLayer = self.mlps[i].a
-            # mlpTime += time.time() - start
+        #     mlpTime += time.time() - start
         # print(attnTime, mlpTime)
 
         # print(lastLayer)
@@ -197,8 +197,10 @@ class LLM(LLMBase):
         #     probabilities,
         #     0,
         # )
+        start = time.time()
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
+        print(time.time() - start)
 
         # mlpTime = 0
         # attnTime = 0
@@ -233,6 +235,7 @@ class LLM(LLMBase):
             # print(i, probabilities[i][self.tokens[i + 1]])
 
     def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+        self.t = t
         warmupSteps = 2000
         totalSteps = 600000
         minLearningRate = 6e-5
@@ -427,10 +430,10 @@ if __name__ == "__main__":
         totalStart = time.time()
         while True:
             # utils.smTime = 0
-            # start = time.time()
+            start = time.time()
             llm.feedForward(beeMovie if i % 2 else shrek)
             # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
-            # print("ff", time.time() - start)
+            print("ff", time.time() - start)
             # start = time.time()
             new = decode(
                 # list(llm.inputTokens) +
@@ -439,13 +442,12 @@ if __name__ == "__main__":
             )
             # print("de", time.time() - start)
             llm.getLoss()
-            # start = time.time()
+            start = time.time()
             llm.backProp()
-            # print("bp", time.time() - start)
-            # start = time.time()
+            print("bp", time.time() - start)
+            start = time.time()
             llm.gradientDescent(1e-3, 1, i)
-            llm.t = i
-            # print("gd", time.time() - start)
+            print("gd", time.time() - start)
             print(
                 new,
                 "loss",

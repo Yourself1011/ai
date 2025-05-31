@@ -1,5 +1,6 @@
 from llmlayer import Layer
 import numpy as np
+import numpy.typing as npt
 
 
 class Embedding(Layer):
@@ -16,24 +17,25 @@ class Embedding(Layer):
         self.decoded = np.empty(vocabSize)
         super().__init__()
 
-    def feedForward(self, lastLayer: np.typing.NDArray):
+    def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.a = self.words[lastLayer] + self.positions
         # for i in range(self.contextSize):
         #     self.a[i] = self.words[lastLayer[i]] + self.positions[i]
 
-    def backProp(self, error: np.typing.NDArray):
+    def backProp(self, error: npt.NDArray):
         for i in range(self.contextSize):
             self.wordsError[self.input[i]] += error[i]
-            self.positionsError[i] += error[i]
+        self.positionsError += error
 
-    def decode(self, lastLayer: np.typing.NDArray):
+    def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
         self.decoded = lastLayer @ self.words.T
 
-    def decodeBackProp(self, error: np.typing.NDArray):
+    def decodeBackProp(self, error: npt.NDArray):
         # self.wordsError += (self.decodeInput.T @ error).T
         self.wordsError += error.T @ self.decodeInput
+        # print(error.shape, self.decodeInput.shape)
         self.error += error @ self.words
 
     def gradientDescent(self, learningRate: float, batchSize: int, t: int):

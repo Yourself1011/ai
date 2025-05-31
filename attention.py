@@ -1,6 +1,8 @@
+import time
 from attentionHead import AttentionHead
 from llmlayer import Layer
 import numpy as np
+import numpy.typing as npt
 from multiprocessing import Pool
 
 from utils import layerNorm
@@ -12,7 +14,7 @@ class Attention(Layer):
         contextSize: int,
         embedDim: int,
         headCount: int,
-        mask: np.typing.NDArray,
+        mask: npt.NDArray,
         pool,
     ) -> None:
         self.contextSize = contextSize
@@ -26,19 +28,19 @@ class Attention(Layer):
         self.qkv = np.random.normal(0, 1, (embedDim, embedDim * 3))
         self.proj = np.random.normal(0, 1, (embedDim, embedDim))
 
-        self.g: np.typing.NDArray = np.ones((contextSize, embedDim))
-        self.b: np.typing.NDArray = np.zeros((contextSize, embedDim))
+        self.g: npt.NDArray = np.ones((contextSize, embedDim))
+        self.b: npt.NDArray = np.zeros((contextSize, embedDim))
 
         self.qkvError = np.zeros((embedDim, embedDim * 3))
         self.projError = np.zeros((embedDim, embedDim))
 
-        self.gError: np.typing.NDArray = np.zeros((contextSize, embedDim))
-        self.bError: np.typing.NDArray = np.zeros((contextSize, embedDim))
+        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.bError: npt.NDArray = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
         self.pool = pool
         super().__init__()
 
-    def feedForward(self, lastLayer: np.typing.NDArray):
+    def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         q, k, v = [
             np.split(x, self.headCount, axis=1)
@@ -46,7 +48,9 @@ class Attention(Layer):
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
+            # start = time.time()
             self.heads[i].feedForward(lastLayer, q[i], k[i], v[i])
+            # print(time.time() - start)
             attentionOutputs.append(self.heads[i].a)
 
         # res = [
@@ -62,7 +66,7 @@ class Attention(Layer):
             self.combined @ self.proj, self.g, self.b
         )
 
-    def backProp(self, error: np.typing.NDArray):
+    def backProp(self, error: npt.NDArray):
         self.bError += error
         self.gError += error * self.z
         # derivative of layer norm
@@ -108,8 +112,8 @@ class Attention(Layer):
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
 
-        self.gError: np.typing.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.bError: np.typing.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.bError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
         self.error = np.zeros((self.contextSize, self.embedDim))
 
         # for head in self.heads:

@@ -1,6 +1,7 @@
 import time
 from llmlayer import Layer
 import numpy as np
+import numpy.typing as npt
 
 from utils import gelu, layerNorm, geluCoefficient, sigmoid
 
@@ -13,43 +14,44 @@ class Mlp(Layer):
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
-        self.w: list[np.typing.NDArray] = [
+        self.w: list[npt.NDArray] = [
             np.random.normal(0, 1, (embedDim, 4 * embedDim)),
             np.random.normal(0, 1, (4 * embedDim, embedDim)),
         ]
-        self.b: list[np.typing.NDArray] = [
+        self.b: list[npt.NDArray] = [
             np.zeros(4 * embedDim),
             np.zeros(embedDim),
         ]
-        self.g: np.typing.NDArray = np.ones((contextSize, embedDim))
-        self.beta: np.typing.NDArray = np.zeros((contextSize, embedDim))
+        self.g: npt.NDArray = np.ones((contextSize, embedDim))
+        self.beta: npt.NDArray = np.zeros((contextSize, embedDim))
 
-        self.wError: list[np.typing.NDArray] = [
+        self.wError: list[npt.NDArray] = [
             np.zeros((embedDim, 4 * embedDim)),
             np.zeros((4 * embedDim, embedDim)),
         ]
-        self.bError: list[np.typing.NDArray] = [
+        self.bError: list[npt.NDArray] = [
             np.zeros(4 * embedDim),
             np.zeros(embedDim),
         ]
-        self.gError: np.typing.NDArray = np.zeros((contextSize, embedDim))
-        self.betaError: np.typing.NDArray = np.zeros((contextSize, embedDim))
+        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.betaError: npt.NDArray = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
         super().__init__()
 
-    def feedForward(self, lastLayer: np.typing.NDArray):
+    def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
-        self.layer1 = lastLayer @ self.w[0] + self.b[0]
         # start = time.time()
+        self.layer1 = lastLayer @ self.w[0] + self.b[0]
         # self.gelu, self.tanh, self.inside = gelu(self.layer1)
+        # use sigmoid approximation instad of tanh
         self.multiplied = self.layer1 * 1.702
         self.sigmoid = sigmoid(self.multiplied)
         self.gelu = self.layer1 * self.sigmoid
-        # print(time.time() - start)
         self.layer2 = self.gelu @ self.w[1] + self.b[1]
         self.a, self.z, self.mean, self.var = layerNorm(self.layer2, self.g, self.beta)
+        # print(time.time() - start)
 
-    def backProp(self, error: np.typing.NDArray):
+    def backProp(self, error: npt.NDArray):
         self.betaError += error
         self.gError += error * self.z
         # derivative of layer norm
@@ -90,14 +92,14 @@ class Mlp(Layer):
             self.adamW("w0", self.w[0], self.wError[0], learningRate, t) / batchSize
         )
 
-        self.wError: list[np.typing.NDArray] = [
+        self.wError: list[npt.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),
             np.zeros((4 * self.embedDim, self.embedDim)),
         ]
-        self.bError: list[np.typing.NDArray] = [
+        self.bError: list[npt.NDArray] = [
             np.zeros(4 * self.embedDim),
             np.zeros(self.embedDim),
         ]
-        self.gError: np.typing.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.betaError: np.typing.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.betaError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
         self.error = np.zeros((self.contextSize, self.embedDim))

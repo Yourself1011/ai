@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.typing as npt
 
 
 class LLMBase:
@@ -9,8 +10,8 @@ class LLMBase:
     def adamW(
         self,
         name: str,
-        value: np.typing.NDArray,
-        change: np.typing.NDArray,
+        value: npt.NDArray,
+        change: npt.NDArray,
         lr: float,
         t: int,
         beta1: float = 0.9,
@@ -34,10 +35,10 @@ class Layer(LLMBase):
     def __init__(self):
         super().__init__()
 
-    def feedForward(self, lastLayer: np.typing.NDArray):
+    def feedForward(self, lastLayer: npt.NDArray):
         pass
 
-    def backProp(self, error: np.typing.NDArray):
+    def backProp(self, error: npt.NDArray):
         pass
 
     def gradientDescent(self, learningRate: float, batchSize: int, t: int):
