@@ -197,10 +197,10 @@ class LLM(LLMBase):
         #     probabilities,
         #     0,
         # )
-        start = time.time()
+        # start = time.time()
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
-        print(time.time() - start)
+        # print(time.time() - start)
 
         # mlpTime = 0
         # attnTime = 0
@@ -236,8 +236,10 @@ class LLM(LLMBase):
 
     def gradientDescent(self, learningRate: float, batchSize: int, t: int):
         self.t = t
-        warmupSteps = 2000
-        totalSteps = 600000
+        # warmupSteps = 2000
+        # totalSteps = 600000
+        warmupSteps = 20
+        totalSteps = 6000
         minLearningRate = 6e-5
 
         if t < warmupSteps:
@@ -253,8 +255,12 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, batchSize, t)
             self.attentions[i].gradientDescent(learningRate, batchSize, t)
-        self.b -= self.adamW("b", self.b, self.bError, learningRate, t) / batchSize
-        self.g -= self.adamW("g", self.g, self.gError, learningRate, t) / batchSize
+        self.b -= self.adamW(
+            "b", self.b, self.bError, learningRate, t, batchSize, decay=0
+        )
+        self.g -= self.adamW(
+            "g", self.g, self.gError, learningRate, t, batchSize, decay=0
+        )
 
         self.gError = np.ones((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
@@ -426,39 +432,46 @@ if __name__ == "__main__":
             f"finished tokenizing in {time.time() - start}s {len(shrek)}, {len(beeMovie)} tokens"
         )
 
-        i = llm.t
+        epoch = llm.t
         totalStart = time.time()
         while True:
-            # utils.smTime = 0
+            for batch in range(2):
+                totalStart = time.time()
+                # utils.smTime = 0
+                # start = time.time()
+                llm.feedForward(beeMovie if batch % 2 else shrek)
+                # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
+                # print("ff", time.time() - start)
+                # start = time.time()
+                # new = decode(
+                #     # list(llm.inputTokens) +
+                #     # [llm.getToken(len(llm.inputTokens) - 1, temperature)],
+                #     [
+                #         llm.getToken(i, temperature)
+                #         for i in range(len(llm.inputTokens - 1))
+                #     ],
+                #     llm.vocab,
+                # )
+                # print("de", time.time() - start)
+                llm.getLoss()
+                # start = time.time()
+                llm.backProp()
+                # print("bp", time.time() - start)
+                print(
+                    # new,
+                    "loss",
+                    llm.loss.sum(),
+                    f"{time.time() - totalStart}s",
+                    "epoch",
+                    epoch,
+                    "batch",
+                    batch,
+                    # "sm",
+                    # utils.smTime,
+                )
             start = time.time()
-            llm.feedForward(beeMovie if i % 2 else shrek)
-            # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
-            print("ff", time.time() - start)
-            # start = time.time()
-            new = decode(
-                # list(llm.inputTokens) +
-                [llm.getToken(len(llm.inputTokens) - 1, temperature)],
-                llm.vocab,
-            )
-            # print("de", time.time() - start)
-            llm.getLoss()
-            start = time.time()
-            llm.backProp()
-            print("bp", time.time() - start)
-            start = time.time()
-            llm.gradientDescent(1e-3, 1, i)
+            llm.gradientDescent(0.1, 2, epoch)
             print("gd", time.time() - start)
-            print(
-                new,
-                "loss",
-                llm.loss.sum(),
-                f"{time.time() - totalStart}s",
-                "iteration",
-                i,
-                # "sm",
-                # utils.smTime,
-            )
-            totalStart = time.time()
-            if not i % 5:
+            if not epoch % 5:
                 llm.save()
-            i += 1
+            epoch += 1

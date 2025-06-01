@@ -14,21 +14,28 @@ class LLMBase:
         change: npt.NDArray,
         lr: float,
         t: int,
+        batchSize: int,
         beta1: float = 0.9,
         beta2: float = 0.999,
-        decay: float = 1e-2,
+        decay: float = 0.1,
     ):
         if name not in self.m:
             self.m[name] = np.zeros(value.shape)
             self.v[name] = np.zeros(value.shape)
+        change /= batchSize
 
         self.m[name] = self.m[name] * beta1 + change * (1 - beta2)
         self.v[name] = self.v[name] * beta2 + change**2 * (1 - beta2)
         m = self.m[name] / (1 - beta1**t)
         v = self.v[name] / (1 - beta2**t)
 
+        if decay == 0:
+            res = m / (np.sqrt(v) + 1e-8)
+        else:
+            res = m / (np.sqrt(v) + 1e-8) + decay * value
+
         # return change * lr
-        return lr * (m / (np.sqrt(v) + 1e-8) + decay * value)
+        return lr * res
 
 
 class Layer(LLMBase):

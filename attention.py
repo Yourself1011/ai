@@ -100,13 +100,17 @@ class Attention(Layer):
         self.error += error @ self.qkv.T
 
     def gradientDescent(self, learningRate: float, batchSize: int, t: int):
-        self.b -= self.adamW("b", self.b, self.bError, learningRate, t) / batchSize
-        self.g -= self.adamW("g", self.g, self.gError, learningRate, t) / batchSize
-        self.proj -= (
-            self.adamW("proj", self.proj, self.projError, learningRate, t) / batchSize
+        self.b -= self.adamW(
+            "b", self.b, self.bError, learningRate, t, batchSize, decay=0
         )
-        self.qkv -= (
-            self.adamW("qkv", self.qkv, self.qkvError, learningRate, t) / batchSize
+        self.g -= self.adamW(
+            "g", self.g, self.gError, learningRate, t, batchSize, decay=0
+        )
+        self.proj -= self.adamW(
+            "proj", self.proj, self.projError, learningRate, t, batchSize
+        )
+        self.qkv -= self.adamW(
+            "qkv", self.qkv, self.qkvError, learningRate, t, batchSize
         )
 
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
