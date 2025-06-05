@@ -106,9 +106,51 @@ class LLM(LLMBase):
                 g=self.g,
                 pos=self.embedding.positions,
                 words=self.embedding.words,
+                allow_pickle=False,
+            )
+
+        data = {}
+        stackData = {}
+        for k, v in self.attentions[0].m.items():
+            stackData["am" + k] = [v]
+        for k, v in self.attentions[0].v.items():
+            stackData["av" + k] = [v]
+        for k, v in self.mlps[0].m.items():
+            stackData["mm" + k] = [v]
+        for k, v in self.mlps[0].v.items():
+            stackData["mv" + k] = [v]
+        for i in range(1, self.layerCount):
+            for k, v in self.attentions[i].m.items():
+                stackData["am" + k].append(v)
+            for k, v in self.attentions[i].v.items():
+                stackData["av" + k].append(v)
+            for k, v in self.mlps[i].m.items():
+                stackData["mm" + k].append(v)
+            for k, v in self.mlps[i].v.items():
+                stackData["mv" + k].append(v)
+
+        for k, v in stackData.items():
+            stackData[k] = np.hstack(v)
+
+        for k, v in self.m.items():
+            data["sm" + k] = v
+        for k, v in self.v.items():
+            data["sv" + k] = v
+        for k, v in self.embedding.m.items():
+            data["em" + k] = v
+        for k, v in self.embedding.v.items():
+            data["ev" + k] = v
+
+        with open("data/adamw.npz", "wb") as f:
+            np.savez(
+                f,
+                **data,
+                **stackData,
                 t=self.t,
                 allow_pickle=False,
             )
+        # print(data["smb"][0][0])
+
         print("done saving")
 
     def load(self):
@@ -117,9 +159,6 @@ class LLM(LLMBase):
         self.g = data["g"]
         self.embedding.positions = data["pos"]
         self.embedding.words = data["words"]
-        if "t" in data:
-            self.t = data["t"]
-            self.t = 1  # change this after saving adamw stuff
 
         data = {
             k: np.split(v, self.layerCount, axis=-1)
@@ -135,6 +174,41 @@ class LLM(LLMBase):
             self.mlps[i].b = [data["mlpb0"][i], data["mlpb1"][i]]
             self.mlps[i].g = data["mlpg"][i]
             self.mlps[i].beta = data["mlpbeta"][i]
+
+        try:
+            data = np.load("data/adamw.npz", allow_pickle=False)
+            for k, v in data.items():
+                if k[0] == "s":
+                    if k[1] == "m":
+                        self.m[k[2:]] = v
+                    if k[1] == "v":
+                        self.v[k[2:]] = v
+                if k[0] == "e":
+                    if k[1] == "m":
+                        self.embedding.m[k[2:]] = v
+                    if k[1] == "v":
+                        self.embedding.v[k[2:]] = v
+                if k[0] == "a":
+                    split = np.split(v, self.layerCount, axis=-1)
+                    if k[1] == "m":
+                        for i in range(self.layerCount):
+                            self.attentions[i].m[k[2:]] = split[i]
+                    if k[1] == "v":
+                        for i in range(self.layerCount):
+                            self.attentions[i].v[k[2:]] = split[i]
+                if k[0] == "m":
+                    split = np.split(v, self.layerCount, axis=-1)
+                    if k[1] == "m":
+                        for i in range(self.layerCount):
+                            self.mlps[i].m[k[2:]] = split[i]
+                    if k[1] == "v":
+                        for i in range(self.layerCount):
+                            self.mlps[i].v[k[2:]] = split[i]
+            # print(data["smb"][0][0])
+            self.t = data["t"]
+        except Exception as e:
+            # raise e
+            print(e)
         # print(self.attentions[3].proj[23][35])
 
     def feedForward(self, input: list[int]):
@@ -315,6 +389,7 @@ if __name__ == "__main__":
         try:
             llm.load()
         except Exception as e:
+            # raise e
             print(e)
             print("failed to load previous params, creating new")
         else:
