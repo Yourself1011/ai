@@ -74,25 +74,29 @@ class Mlp(Layer):
         self.error += error @ self.w[0].T
         # self.error += ( self.w[0] @ error.T ).T
 
-    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+    def normalizeError(self, batchSize: int):
+        self.wError[0] /= batchSize
+        self.wError[1] /= batchSize
+        self.bError[0] /= batchSize
+        self.bError[1] /= batchSize
+
+        self.gError /= batchSize
+        self.betaError /= batchSize
+        self.error /= batchSize
+
+    def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.beta -= self.adamW(
-            "beta", self.beta, self.betaError, learningRate, t, batchSize, decay=0
+            "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
         )
-        self.g -= self.adamW(
-            "g", self.g, self.gError, learningRate, t, batchSize, decay=0
-        )
+        self.g -= self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.b[1] -= self.adamW(
-            "b1", self.b[1], self.bError[1], learningRate, t, batchSize, decay=0
+            "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
         )
-        self.w[1] -= self.adamW(
-            "w1", self.w[1], self.wError[1], learningRate, t, batchSize
-        )
+        self.w[1] -= self.adamW("w1", self.w[1], self.wError[1], learningRate, t, mult)
         self.b[0] -= self.adamW(
-            "b0", self.b[0], self.bError[0], learningRate, t, batchSize, decay=0
+            "b0", self.b[0], self.bError[0], learningRate, t, mult, decay=0
         )
-        self.w[0] -= self.adamW(
-            "w0", self.w[0], self.wError[0], learningRate, t, batchSize
-        )
+        self.w[0] -= self.adamW("w0", self.w[0], self.wError[0], learningRate, t, mult)
 
         self.wError: list[npt.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),

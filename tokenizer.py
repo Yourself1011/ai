@@ -1,9 +1,11 @@
 import json
 from os import error
 import os
-from time import time
+import time
 from typing import Tuple
 import regex as re
+
+from wikiPage import wikiPage
 
 
 specialTokens = {"<|endoftext|>": 256}
@@ -37,13 +39,15 @@ def tokenizer(
         vocab[v] = k.encode("utf-8")
     initVocabLen = len(vocab)
 
+    start = time.time()
     for i in range(size - initVocabLen):
         if not i % 100:
-            print(f"{i}/{size - initVocabLen}")
+            print(f"{i}/{size - initVocabLen} {time.time() - start}s")
+            start = time.time()
 
         # count pairs
         pairs = {}
-        for c in list(unsaturated):
+        for c in unsaturated.copy():
             chunk = ids[c]
             if len(chunk) == 1:
                 unsaturated.remove(c)
@@ -64,7 +68,7 @@ def tokenizer(
         merges[highestPair] = newId
         vocab[newId] = vocab[highestPair[0]] + vocab[highestPair[1]]
 
-        for j in list(unsaturated):
+        for j in unsaturated:
             chunk = ids[j]
             k = 0
             newIds = []
@@ -98,6 +102,45 @@ def encode(text: str, merges: dict[Tuple[int, int], int]) -> list[int]:
     ]
     # print(chunks)
     # print(ids)
+    reverse = {}
+    for i in range(len(ids)):
+        chunk = ids[i]
+        for j in range(len(chunk)):
+            c = chunk[j]
+            if c in reverse:
+                reverse[c].append((i, j))
+            else:
+                reverse[c] = [(i, j)]
+
+    for pair, newId in merges.items():
+        if pair[0] in reverse:
+            new = []
+            for i, char in reverse[pair[0]]:
+                word = ids[i]
+                if word[char] == -1:
+                    continue
+
+                j = char + 1
+                while j < len(word) and word[j] == -1:
+                    j += 1
+
+                if j < len(word) and word[j] == pair[1]:
+                    if newId not in reverse:
+                        reverse[newId] = [(i, char)]
+                    else:
+                        reverse[newId].append((i, char))
+                    word[char] = newId
+                    word[j] = -1
+                else:
+                    new.append((i, char))
+            reverse[pair[0]] = new
+
+    out = []
+    for chunk in ids:
+        for token in chunk:
+            if token != -1:
+                out.append(token)
+    return out
 
     for pair, newId in merges.items():
         for i in range(len(ids)):
@@ -117,7 +160,7 @@ def encode(text: str, merges: dict[Tuple[int, int], int]) -> list[int]:
 
 
 def decode(ids: list[int], vocab: dict[int, bytes]):
-    return b"".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
+    return b"|".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
 
 
 def load(vocabSize: int):
@@ -145,7 +188,10 @@ def load(vocabSize: int):
         for root, _, files in os.walk("data/training"):
             for name in files:
                 with open(os.path.join(root, name), "r") as file:
-                    data += file.read()
+                    data += file.read() + "\n"
+        while len(data) < 10_000_000:
+            data += wikiPage() + "\n"
+            print(len(data))
         (merges, vocab) = tokenizer(data, vocabSize)
 
         with open("data/tokenizerData.json", "w") as file:

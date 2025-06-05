@@ -14,15 +14,17 @@ class LLMBase:
         change: npt.NDArray,
         lr: float,
         t: int,
-        batchSize: int,
+        mult: float,
         beta1: float = 0.9,
         beta2: float = 0.999,
-        decay: float = 0.1,
+        decay: float = 0.01,
     ):
         if name not in self.m:
             self.m[name] = np.zeros(value.shape)
             self.v[name] = np.zeros(value.shape)
-        change /= batchSize
+
+        if mult != 1:
+            change *= mult
 
         self.m[name] = self.m[name] * beta1 + change * (1 - beta2)
         self.v[name] = self.v[name] * beta2 + change**2 * (1 - beta2)
@@ -48,5 +50,8 @@ class Layer(LLMBase):
     def backProp(self, error: npt.NDArray):
         pass
 
-    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+    def normalizeError(self, batchSize: int):
+        pass
+
+    def gradientDescent(self, learningRate: float, t: int, mult: float):
         pass

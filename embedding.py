@@ -38,12 +38,16 @@ class Embedding(Layer):
         # print(error.shape, self.decodeInput.shape)
         self.error += error @ self.words
 
-    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
+    def normalizeError(self, batchSize: int):
+        self.wordsError /= batchSize
+        self.positionsError /= batchSize
+
+    def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.words -= self.adamW(
-            "words", self.words, self.wordsError, learningRate, t, batchSize
+            "words", self.words, self.wordsError, learningRate, t, mult
         )
         self.positions -= self.adamW(
-            "positions", self.positions, self.positionsError, learningRate, t, batchSize
+            "positions", self.positions, self.positionsError, learningRate, t, mult
         )
 
         self.error = np.zeros((self.contextSize, self.embedDim))

@@ -99,19 +99,20 @@ class Attention(Layer):
         # print(error.shape, self.qkv.shape)
         self.error += error @ self.qkv.T
 
-    def gradientDescent(self, learningRate: float, batchSize: int, t: int):
-        self.b -= self.adamW(
-            "b", self.b, self.bError, learningRate, t, batchSize, decay=0
-        )
-        self.g -= self.adamW(
-            "g", self.g, self.gError, learningRate, t, batchSize, decay=0
-        )
+    def normalizeError(self, batchSize: int):
+        self.qkvError /= batchSize
+        self.projError /= batchSize
+
+        self.gError /= batchSize
+        self.bError /= batchSize
+
+    def gradientDescent(self, learningRate: float, t: int, mult: float):
+        self.b -= self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        self.g -= self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.proj -= self.adamW(
-            "proj", self.proj, self.projError, learningRate, t, batchSize
+            "proj", self.proj, self.projError, learningRate, t, mult
         )
-        self.qkv -= self.adamW(
-            "qkv", self.qkv, self.qkvError, learningRate, t, batchSize
-        )
+        self.qkv -= self.adamW("qkv", self.qkv, self.qkvError, learningRate, t, mult)
 
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
