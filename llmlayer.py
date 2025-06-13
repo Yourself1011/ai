@@ -1,4 +1,12 @@
 import numpy as np
+
+try:
+    import cupy
+
+    if cupy.cuda.is_available():
+        np = cupy
+except Exception:
+    pass
 import numpy.typing as npt
 
 
@@ -16,8 +24,8 @@ class LLMBase:
         t: int,
         mult: float,
         beta1: float = 0.9,
-        beta2: float = 0.999,
-        decay: float = 0.01,
+        beta2: float = 0.95,
+        decay: float = 0.1,
     ):
         if name not in self.m:
             self.m[name] = np.zeros(value.shape)

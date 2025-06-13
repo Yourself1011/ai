@@ -1,9 +1,19 @@
-import time
-from llmlayer import Layer
 import numpy as np
+
+from llmlayer import Layer
+
+try:
+    import cupy
+
+    if cupy.cuda.is_available():
+        np = cupy
+except Exception:
+    pass
+import time
+
 import numpy.typing as npt
 
-from utils import gelu, layerNorm, geluCoefficient, sigmoid
+from utils import layerNorm, sigmoid
 
 
 class Mlp(Layer):

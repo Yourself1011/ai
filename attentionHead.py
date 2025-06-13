@@ -1,7 +1,14 @@
-import math
 from typing import Tuple
-from llmlayer import Layer
+
 import numpy as np
+
+try:
+    import cupy
+
+    if cupy.cuda.is_available():
+        np = cupy
+except Exception:
+    pass
 import numpy.typing as npt
 
 from utils import softmax

@@ -1,10 +1,19 @@
 import time
+
+import numpy as np
+
+try:
+    import cupy
+
+    if cupy.cuda.is_available():
+        np = cupy
+except Exception:
+    pass
+
+import numpy.typing as npt
+
 from attentionHead import AttentionHead
 from llmlayer import Layer
-import numpy as np
-import numpy.typing as npt
-from multiprocessing import Pool
-
 from utils import layerNorm
 
 
