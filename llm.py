@@ -409,92 +409,95 @@ class LLM(LLMBase):
 
 
 if __name__ == "__main__":
-    with Pool(processes=1) as pool:
-        llm = LLM(50257, 768, 1024, 12, 12, pool)
-        start = time.time()
-        try:
-            llm.load()
-        except Exception as e:
-            # raise e
-            print(e)
-            print("failed to load previous params, creating new")
-        else:
-            print(f"loaded params {time.time() - start}s")
-        # llm = LLM(50257, 8, 10, 2)
+    try:
+        with Pool(processes=1) as pool:
+            llm = LLM(50257, 768, 1024, 12, 12, pool)
+            start = time.time()
+            try:
+                llm.load()
+            except Exception as e:
+                # raise e
+                print(e)
+                print("failed to load previous params, creating new")
+            else:
+                print(f"loaded params {time.time() - start}s")
+            # llm = LLM(50257, 8, 10, 2)
 
-        if len(sys.argv) > 1 and sys.argv[1] == "test":
-            message = input("> ")
-            # message = "hello world"
-            temperature = 1
-            i = 0
-            while True:
-                # if not i % 100:
-                #     llm.save()
+            if len(sys.argv) > 1 and sys.argv[1] == "test":
+                message = input("> ")
+                # message = "hello world"
+                temperature = 1
+                i = 0
+                while True:
+                    # if not i % 100:
+                    #     llm.save()
 
-                llm.feedForward(encode(message, llm.merges))
-                token = llm.getToken(llm.inputLength - 1, temperature)
-                new = decode(
-                    # list(llm.inputTokens) +
-                    [token],
-                    llm.vocab,
-                )
-                if token == 256:
-                    break
-                print(new, end="", flush=True)
-                message += new
-                i += 1
-
-        else:
-            temperature = 1
-
-            epoch = llm.t
-            totalStart = time.time()
-            while True:
-                llm.avgLoss = 0
-                n = math.ceil(epoch / 600000 * 64)
-                for batch in range(n):
-                    totalStart = time.time()
-                    # utils.smTime = 0
-                    # start = time.time()
-                    llm.feedForward(getData(llm.contextSize, llm.merges))
-                    # llm.feedForward(beeMovie)  # if batch % 2 else shrek)
-                    # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
-                    # print("ff", time.time() - start)
-                    # start = time.time()
-                    # new = decode(
-                    #     # list(llm.inputTokens) +
-                    #     # [llm.getToken(llm.inputLength - 1, temperature)],
-                    #     [
-                    #         llm.getToken(i, temperature)
-                    #         for i in range(llm.inputLength - 1)
-                    #     ],
-                    #     llm.vocab,
-                    # )
-                    # print("de", time.time() - start)
-                    llm.getLoss()
-                    # start = time.time()
-                    llm.backProp()
-                    # print("bp", time.time() - start)
-                    print(
-                        # new,
-                        "loss",
-                        llm.loss.sum(),
-                        f"{time.time() - totalStart}s",
-                        "epoch",
-                        epoch,
-                        "batch",
-                        batch,
-                        "size",
-                        llm.inputLength,
-                        # "sm",
-                        # utils.smTime,
+                    llm.feedForward(encode(message, llm.merges))
+                    token = llm.getToken(llm.inputLength - 1, temperature)
+                    new = decode(
+                        # list(llm.inputTokens) +
+                        [token],
+                        llm.vocab,
                     )
-                    llm.avgLoss += llm.loss.sum()
-                llm.history.append([str(epoch), str(llm.avgLoss / n)])
+                    if token == 256:
+                        break
+                    print(new, end="", flush=True)
+                    message += new
+                    i += 1
 
-                start = time.time()
-                llm.gradientDescent(6e-4, 2, epoch, clip=1)
-                print("    gd", time.time() - start)
-                if not epoch % 10:
-                    llm.save()
-                epoch += 1
+            else:
+                temperature = 1
+
+                epoch = llm.t
+                totalStart = time.time()
+                while True:
+                    llm.avgLoss = 0
+                    n = math.ceil(epoch / 600000 * 64)
+                    for batch in range(n):
+                        totalStart = time.time()
+                        # utils.smTime = 0
+                        # start = time.time()
+                        llm.feedForward(getData(llm.contextSize, llm.merges))
+                        # llm.feedForward(beeMovie)  # if batch % 2 else shrek)
+                        # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
+                        # print("ff", time.time() - start)
+                        # start = time.time()
+                        # new = decode(
+                        #     # list(llm.inputTokens) +
+                        #     # [llm.getToken(llm.inputLength - 1, temperature)],
+                        #     [
+                        #         llm.getToken(i, temperature)
+                        #         for i in range(llm.inputLength - 1)
+                        #     ],
+                        #     llm.vocab,
+                        # )
+                        # print("de", time.time() - start)
+                        llm.getLoss()
+                        # start = time.time()
+                        llm.backProp()
+                        # print("bp", time.time() - start)
+                        print(
+                            # new,
+                            "loss",
+                            llm.loss.sum(),
+                            f"{time.time() - totalStart}s",
+                            "epoch",
+                            epoch,
+                            "batch",
+                            batch,
+                            "size",
+                            llm.inputLength,
+                            # "sm",
+                            # utils.smTime,
+                        )
+                        llm.avgLoss += llm.loss.sum()
+                    llm.history.append([str(epoch), str(llm.avgLoss / n)])
+
+                    start = time.time()
+                    llm.gradientDescent(6e-4, 2, epoch, clip=1)
+                    print("    gd", time.time() - start)
+                    if not epoch % 10:
+                        llm.save()
+                    epoch += 1
+    except KeyboardInterrupt:
+        pass

@@ -1,0 +1,13 @@
+name: chatSkibidi
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - numpy=2.2.6
+    - pip=25.1
+    - python=3.13.2
+    - requests=2.32.3
+    - urllib3=2.3.0
+    - pip:
+          - regex
+          - cupy
