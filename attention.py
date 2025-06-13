@@ -24,7 +24,7 @@ class Attention(Layer):
         embedDim: int,
         headCount: int,
         mask: npt.NDArray,
-        pool,
+        # pool,
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
@@ -46,7 +46,7 @@ class Attention(Layer):
         self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
         self.bError: npt.NDArray = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
-        self.pool = pool
+        # self.pool = pool
         super().__init__()
 
     def feedForward(self, lastLayer: npt.NDArray):
