@@ -179,11 +179,12 @@ class LLM(LLMBase):
         self.embedding.positions = data["pos"]
         self.embedding.words = data["words"]
 
-        data = {
-            k: np.split(data[k], self.layerCount, axis=-1)
+        tempData = {
+            k: np.split(data[k], self.layerCount, axis=data[k].ndim - 1)
             for k in keys
             if k not in ["b", "g", "pos", "words", "t"]
         }
+        data = tempData
         for i in range(self.layerCount):
             self.attentions[i].qkv = data["attnqkv"][i]
             self.attentions[i].proj = data["attnproj"][i]
