@@ -196,6 +196,10 @@ class LLM(LLMBase):
 
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
+            if usingCupy:
+                items = data.npz_file.items()
+            else:
+                items = data.items()
             for k, v in items:
                 if k[0] == "s":
                     if k[1] == "m":
