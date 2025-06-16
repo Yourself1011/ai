@@ -171,17 +171,17 @@ class LLM(LLMBase):
     def load(self):
         data = np.load("data/params.npz", allow_pickle=False)
         if usingCupy:
-            items = data.npz_file.items()
+            keys = data.npz_file.keys()
         else:
-            items = data.items()
+            keys = data.keys()
         self.b = data["b"]
         self.g = data["g"]
         self.embedding.positions = data["pos"]
         self.embedding.words = data["words"]
 
         data = {
-            k: np.split(v, self.layerCount, axis=-1)
-            for k, v in items
+            k: np.split(data[k], self.layerCount, axis=-1)
+            for k in keys
             if k not in ["b", "g", "pos", "words", "t"]
         }
         for i in range(self.layerCount):
@@ -197,10 +197,11 @@ class LLM(LLMBase):
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
             if usingCupy:
-                items = data.npz_file.items()
+                keys = data.npz_file.keys()
             else:
-                items = data.items()
-            for k, v in items:
+                keys = data.keys()
+            for k in keys:
+                v = data[k]
                 if k[0] == "s":
                     if k[1] == "m":
                         self.m[k[2:]] = v
