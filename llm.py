@@ -14,8 +14,9 @@ try:
 
     if cupy.cuda.is_available():
         np = cupy
+        usingCupy = True
 except Exception:
-    pass
+    usingCupy = False
 
 from attention import Attention
 from dataFetch import getData
@@ -169,6 +170,10 @@ class LLM(LLMBase):
 
     def load(self):
         data = np.load("data/params.npz", allow_pickle=False)
+        if usingCupy:
+            items = data.npz_file.items()
+        else:
+            items = data.items()
         self.b = data["b"]
         self.g = data["g"]
         self.embedding.positions = data["pos"]
@@ -176,7 +181,7 @@ class LLM(LLMBase):
 
         data = {
             k: np.split(v, self.layerCount, axis=-1)
-            for k, v in data.items()
+            for k, v in items
             if k not in ["b", "g", "pos", "words", "t"]
         }
         for i in range(self.layerCount):
@@ -191,7 +196,7 @@ class LLM(LLMBase):
 
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
-            for k, v in data.items():
+            for k, v in items:
                 if k[0] == "s":
                     if k[1] == "m":
                         self.m[k[2:]] = v
