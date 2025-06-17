@@ -171,7 +171,8 @@ class LLM(LLMBase):
     def load(self):
         data = np.load("data/params.npz", allow_pickle=False)
         if usingCupy:
-            keys = data.npz_file.keys()
+            keys = list(data.npz_file.keys())
+            keys.remove("allow_pickle")
         else:
             keys = data.keys()
         self.b = data["b"]
@@ -198,7 +199,8 @@ class LLM(LLMBase):
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
             if usingCupy:
-                keys = data.npz_file.keys()
+                keys = list(data.npz_file.keys())
+                keys.remove("allow_pickle")
             else:
                 keys = data.keys()
             for k in keys:
