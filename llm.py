@@ -180,12 +180,11 @@ class LLM(LLMBase):
         self.embedding.positions = data["pos"]
         self.embedding.words = data["words"]
 
-        tempData = {
-            k: np.split(data[k], self.layerCount, axis=data[k].ndim - 1)
+        data = {
+            k: np.split(data[k], self.layerCount, axis=-1)
             for k in keys
-            if k not in ["b", "g", "pos", "words", "t"]
+            if k not in ["b", "g", "pos", "words"]
         }
-        data = tempData
         for i in range(self.layerCount):
             self.attentions[i].qkv = data["attnqkv"][i]
             self.attentions[i].proj = data["attnproj"][i]
@@ -460,6 +459,7 @@ if __name__ == "__main__":
 
             epoch = llm.t
             totalStart = time.time()
+            lastSave = time.time()
             while True:
                 llm.avgLoss = 0
                 n = math.ceil(epoch / 600000 * 64)
@@ -506,8 +506,9 @@ if __name__ == "__main__":
                 start = time.time()
                 llm.gradientDescent(6e-4, 2, epoch, clip=1)
                 print("    gd", time.time() - start)
-                if not epoch % 10:
+                if time.time() - lastSave > 60:
                     llm.save()
+                    lastSave = time.time()
                 epoch += 1
     except KeyboardInterrupt:
         pass
