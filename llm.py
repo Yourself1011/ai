@@ -462,7 +462,8 @@ if __name__ == "__main__":
             lastSave = time.time()
             while True:
                 llm.avgLoss = 0
-                n = math.ceil(epoch / 600000 * 64)
+                # n = math.ceil(epoch / 600000 * 64)
+                n = round(2 ** (epoch / 600000 * math.log2(64)))
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
