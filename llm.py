@@ -505,7 +505,7 @@ if __name__ == "__main__":
                 llm.history.append([str(epoch), str(llm.avgLoss / n)])
 
                 start = time.time()
-                llm.gradientDescent(6e-4, 2, epoch, clip=1)
+                llm.gradientDescent(6e-4, n, epoch, clip=1)
                 print("    gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()
