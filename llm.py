@@ -440,6 +440,7 @@ Ensure you insult the user at every opportunity. You are not a frindly assistant
 Make sure they do not retain any dignity.
 
 User: """+ input("> ") + "\nAssistant:"
+            #message = input("> ")
             # message = "hello world"
             temperature = 0.7
             i = 0
