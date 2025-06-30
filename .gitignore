@@ -175,3 +175,5 @@ cython_debug/
 
 # definitely wouldn't want to leak all my dms
 data/
+
+nohup.out
