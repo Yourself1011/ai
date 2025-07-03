@@ -1,7 +1,8 @@
-from time import sleep
+from time import sleep, time
 import regex
 import requests
 import urllib.parse
+from datasets import load_dataset
 
 
 def wikiPage():
@@ -38,5 +39,24 @@ def wikiPage():
 
     return text
 
+
+dataset = None
+
+
+def pj():
+    global dataset
+    if dataset is None:
+        print("loading dataset")
+        start = time()
+        dataset = iter(load_dataset(
+            "cerebras/SlimPajama-627B", split="train", streaming=True
+        ).shuffle(seed=round(time() * 1000)))
+        print(f"loaded dataset in {time() - start}s")
+
+    return next(dataset)["text"]
+
+
 if __name__ == "__main__":
-    print(wikiPage())
+    print(pj())
+    print("\n")
+    print(pj())

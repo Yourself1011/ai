@@ -8,6 +8,8 @@ dependencies:
     - python=3.13.2
     - requests=2.32.3
     - urllib3=2.3.0
+    - datasets
+    - zstandard
     - pip:
           - regex
           - cupy

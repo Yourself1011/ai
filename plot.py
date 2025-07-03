@@ -1,15 +1,19 @@
 import csv
+import math
+import sys
 import matplotlib.pyplot as plt
 
-with open("data/history.csv") as f:
+with open(sys.argv[1]) as f:
     f = csv.reader(f)
     iteration, loss = zip(*f)
 
 iterations = list(map(int, iteration))
-losses = list(map(float, loss))
+losses = list(map(lambda x: math.log(float(x)), loss))
 x = range(len(iterations))
 
-plt.plot(x, losses)
+fig, ax = plt.subplots()
+ax.plot(x, losses)
+fig.set_size_inches(16, 8, forward=True)
 plt.xticks(x, rotation=90)
 plt.ylabel("loss")
 plt.show()

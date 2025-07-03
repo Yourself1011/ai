@@ -2,7 +2,7 @@ import time
 from multiprocessing import Process, Queue
 
 from tokenizer import encode
-from wikiPage import wikiPage
+from getData import wikiPage, pj
 
 tokens = []
 buffer = []
@@ -15,18 +15,23 @@ def getData(amt: int, merges):
     global i, tokens, process, queue, buffer
     # print(i, len(tokens))
     if i + amt + 1 >= len(tokens):
-        if len(tokens) == 0 and len(buffer) == 0:
-            # first time running it
-            addToBuffer(queue, merges, amt)
-            buffer = queue.get()
-        else:
-            buffer = queue.get()
-            process.join()
+        # if len(tokens) == 0 and len(buffer) == 0:
+        #     # first time running it
+        #     asyncAddToBuffer(queue, merges, amt)
+        #     buffer = queue.get()
+        # else:
+        #     buffer = queue.get()
+        #     process.join()
+        # chunk = tokens[i:] + buffer[: amt - (len(tokens) % amt) + 1]
+        # tokens = buffer[amt - (len(tokens) % amt) :]
+        # queue = Queue()
+        # process = Process(target=addToBuffer, args=[queue, merges, amt])
+        # process.start()
+
+        buffer = addToBuffer(merges, amt)
         chunk = tokens[i:] + buffer[: amt - (len(tokens) % amt) + 1]
         tokens = buffer[amt - (len(tokens) % amt) :]
-        queue = Queue()
-        process = Process(target=addToBuffer, args=[queue, merges, amt])
-        process.start()
+
         i = 0
     else:
         chunk = tokens[i : i + amt + 1]
@@ -34,18 +39,22 @@ def getData(amt: int, merges):
     return chunk
 
 
-def addToBuffer(queue, merges, amt):
+def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = wikiPage()
+        filtered = pj()
+        # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new
         print(
-            "    wiki article finished in",
+            "    got text in",
             time.time() - start,
             "s,",
             len(new),
             "tokens",
         )
-    queue.put(buffer)
+    return buffer
+
+def asyncAddToBuffer(queue, merges, amt):
+    queue.put(addToBuffer(merges, amt))

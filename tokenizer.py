@@ -4,7 +4,7 @@ import time
 from typing import Tuple
 import regex as re
 
-from wikiPage import wikiPage
+from getData import wikiPage, pj
 
 
 specialTokens = {"<|endoftext|>": 256}
@@ -189,7 +189,7 @@ def load(vocabSize: int):
                 with open(os.path.join(root, name), "r") as file:
                     data += file.read() + "\n"
         while len(data) < 10_000_000:
-            data += wikiPage() + "\n"
+            data += pj() + "\n"
             print(len(data))
         (merges, vocab) = tokenizer(data, vocabSize)
 
