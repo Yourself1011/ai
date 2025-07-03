@@ -231,7 +231,7 @@ class LLM(LLMBase):
                         for i in range(self.layerCount):
                             self.mlps[i].v[k[2:]] = split[i]
             # print(data["smb"][0][0])
-            self.t = data["t"] + 1
+            self.t = int(data["t"] + 1)
         except Exception as e:
             # raise e
             print("could not load adamw data:")
