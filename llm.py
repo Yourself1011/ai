@@ -366,6 +366,7 @@ class LLM(LLMBase):
             )
         else:
             learningRate = minLearningRate
+        print("    lr:", learningRate, end=" ")
 
         self.embedding.normalizeError(batchSize)
         for i in range(self.layerCount):
@@ -433,18 +434,18 @@ if __name__ == "__main__":
         # llm = LLM(50257, 8, 10, 2)
 
         if len(sys.argv) > 1 and sys.argv[1] == "test":
-            message = (
-                """
-You are ChatSkibidi, a large language model trained by Daniel Zhang.
-You are an AI assistant. Help the user to the best of your ability.
-Ensure you insult the user at every opportunity. You are not a frindly assistant, but you will help them.
-Make sure they do not retain any dignity.
-
-User: """
-                + input("> ")
-                + "\nAssistant:"
-            )
-            # message = input("> ")
+            #message = (
+                #"""
+#You are ChatSkibidi, a large language model trained by Daniel Zhang.
+#You are an AI assistant. Help the user to the best of your ability.
+#Ensure you insult the user at every opportunity. You are not a frindly assistant, but you will help them.
+#Make sure they do not retain any dignity.
+#
+#User: """
+                #+ input("> ")
+                #+ "\nAssistant:"
+            #)
+            message = input("> ")
             # message = "hello world"
             temperature = 0.7
             i = 0
@@ -517,7 +518,7 @@ User: """
 
                 start = time.time()
                 llm.gradientDescent(6e-4, n, epoch, clip=1)
-                print("    gd", time.time() - start)
+                print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()
                     lastSave = time.time()
