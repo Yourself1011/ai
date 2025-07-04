@@ -158,8 +158,8 @@ def encode(text: str, merges: dict[Tuple[int, int], int]) -> list[int]:
     return sum(ids, [])
 
 
-def decode(ids: list[int], vocab: dict[int, bytes]):
-    return b"".join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
+def decode(ids: list[int], vocab: dict[int, bytes], sep: str = b""):
+    return sep.join([vocab[x] for x in ids]).decode("utf-8", errors="replace")
 
 
 def load(vocabSize: int):
@@ -219,4 +219,4 @@ if __name__ == "__main__":
         merges,
     )
     print(encoded)
-    print(decode(encoded, vocab))
+    print(decode(encoded, vocab, sep=b"|"))

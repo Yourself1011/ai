@@ -10,5 +10,6 @@ dependencies:
     - urllib3=2.3.0
     - datasets
     - zstandard
+    - matplotlib
     - pip:
           - regex
