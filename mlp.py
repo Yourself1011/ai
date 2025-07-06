@@ -81,7 +81,7 @@ class Mlp(Layer):
         # print(self.input.shape, error.shape)
         self.wError[0] += self.input.T @ error
         # print(error.shape, self.w[0].shape)
-        self.error += error @ self.w[0].T
+        self.error = error @ self.w[0].T
         # self.error += ( self.w[0] @ error.T ).T
 
     def normalizeError(self, batchSize: int):
@@ -118,4 +118,4 @@ class Mlp(Layer):
         ]
         self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
         self.betaError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.error = np.zeros((self.contextSize, self.embedDim))
+        # self.error = np.zeros((self.contextSize, self.embedDim))

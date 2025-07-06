@@ -106,7 +106,7 @@ class Attention(Layer):
         error = np.hstack([np.hstack(x) for x in qkvErrors])
         self.qkvError += self.input.T @ error
         # print(error.shape, self.qkv.shape)
-        self.error += error @ self.qkv.T
+        self.error = error @ self.qkv.T
 
     def normalizeError(self, batchSize: int):
         self.qkvError /= batchSize
@@ -128,7 +128,7 @@ class Attention(Layer):
 
         self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
         self.bError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.error = np.zeros((self.contextSize, self.embedDim))
+        # self.error = np.zeros((self.contextSize, self.embedDim))
 
         # for head in self.heads:
         #     head.gradientDescent(learningRate, batchSize)

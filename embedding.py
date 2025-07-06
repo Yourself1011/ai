@@ -45,7 +45,7 @@ class Embedding(Layer):
         # self.wordsError += (self.decodeInput.T @ error).T
         self.wordsError += error.T @ self.decodeInput
         # print(error.shape, self.decodeInput.shape)
-        self.error += error @ self.words
+        self.error = error @ self.words
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize
@@ -59,6 +59,6 @@ class Embedding(Layer):
             "positions", self.positions, self.positionsError, learningRate, t, mult
         )
 
-        self.error = np.zeros((self.contextSize, self.embedDim))
+        # self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))
         self.positionsError = np.zeros((self.contextSize, self.embedDim))
