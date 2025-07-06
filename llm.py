@@ -353,7 +353,7 @@ class LLM(LLMBase):
     ):
         self.t = t
         warmupSteps = 2000
-        totalSteps = 300_000
+        totalSteps = 600_000
         # warmupSteps = 20
         # totalSteps = 6000
         minLearningRate = learningRate * 0.1
@@ -475,7 +475,8 @@ if __name__ == "__main__":
             while True:
                 llm.avgLoss = 0
                 # n = math.ceil(epoch / 600000 * 64)
-                n = round(2 ** (step / 300000 * math.log2(64)))
+                # n = round(2 ** (step / 50000 * math.log2(480)))
+                n = 1 if step < 5000 else 480
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
