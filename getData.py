@@ -1,3 +1,4 @@
+import os
 from time import sleep, time
 import regex
 import requests
@@ -48,15 +49,30 @@ def pj():
     if dataset is None:
         print("loading dataset")
         start = time()
-        dataset = iter(load_dataset(
-            "cerebras/SlimPajama-627B", split="train", streaming=True
-        ).shuffle(seed=round(time() * 1000)))
+        dataset = iter(
+            load_dataset(
+                "cerebras/SlimPajama-627B", split="train", streaming=True
+            ).shuffle(seed=round(time() * 1000))
+        )
         print(f"loaded dataset in {time() - start}s")
 
     return next(dataset)["text"]
 
 
+myData = ""
+
+
+def getMyData():
+    global myData
+    if myData == "":
+        for root, _, files in os.walk("data/training"):
+            for name in files:
+                with open(os.path.join(root, name), "r") as file:
+                    myData += file.read() + "\n"
+    return myData
+
+
 if __name__ == "__main__":
-    print(pj())
+    print(getMyData())
     print("\n")
-    print(pj())
+    print(getMyData())

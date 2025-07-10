@@ -2,7 +2,7 @@ import time
 from multiprocessing import Process, Queue
 
 from tokenizer import encode
-from getData import wikiPage, pj
+from getData import getMyData, wikiPage, pj
 
 tokens = []
 buffer = []
@@ -43,7 +43,7 @@ def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = pj()
+        filtered = getMyData()
         # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new
@@ -55,6 +55,7 @@ def addToBuffer(merges, amt):
             "tokens",
         )
     return buffer
+
 
 def asyncAddToBuffer(queue, merges, amt):
     queue.put(addToBuffer(merges, amt))
