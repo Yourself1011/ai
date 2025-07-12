@@ -44,7 +44,7 @@ class LLMBase:
         else:
             res = m / (np.sqrt(v) + 1e-8) + decay * value
 
-        # return change * lr
+        return change * lr
         return lr * res
 
 

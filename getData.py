@@ -72,6 +72,11 @@ def getMyData():
     return myData
 
 
+def getBee():
+    with open("data/bee movie script", "r") as file:
+        return file.read()
+
+
 if __name__ == "__main__":
     print(getMyData())
     print("\n")

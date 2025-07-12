@@ -421,7 +421,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(50257, 768, 1024, 12, 12)
+        # llm = LLM(50257, 768, 1024, 12, 12)
+        llm = LLM(50257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -474,9 +475,9 @@ if __name__ == "__main__":
             lastSave = time.time()
             while True:
                 llm.avgLoss = 0
-                # n = math.ceil(epoch / 600000 * 64)
+                n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
-                n = 1 if step < 5000 else 480
+                # n = 1 if step < 5000 else 480
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
