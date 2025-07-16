@@ -1,31 +1,48 @@
+import math
 import torch
+# sanity checks
 
-x = torch.randn(5, 10, requires_grad=True)
+contextSize = 10
+embedDim = 10
+query = torch.randn(contextSize, embedDim, requires_grad=True)
+key = torch.randn(contextSize, embedDim, requires_grad=True)
 
 
-def torchLayerNorm(x):
-    mean = x.mean(axis=-1, keepdims=True)
-    var = x.var(axis=-1, keepdims=True)
+attentionMask = torch.full((contextSize, contextSize), False)
+for i in range(contextSize):
+    attentionMask[i][: i + 1] = True
 
-    z = (x - mean) / torch.sqrt(var + 1e-5)
-    result = z
-    # print(result.var(axis=-1))
-    # print(result.mean(axis=-1))
+attentionPattern = torch.where(
+    attentionMask,
+    # (
+    #     np.matmul(lastLayer, self.query)
+    #     * np.matmul(lastLayer, self.key).reshape(
+    #         contextSize, 1, self.embedDim // self.headCount
+    #     )
+    # ).sum(2),
+    query @ key.T,
+    -torch.inf,
+) / (math.sqrt(embedDim))
+
+
+def torchSoftmax(x, T: float = 1):
+    # global smTime
+    # start = time.time()
+    adj = x / T if T != 1 else x
+    exp = torch.e ** (
+        adj - adj.max(-1, keepdims=True).values
+    )  # we subtract the highest number, to keep values from getting too big
+    res = exp / exp.sum(-1, keepdims=True)
     # smTime += time.time() - start
-    return result, z, mean, var
+    return res
 
 
-y, z, mean, var = torchLayerNorm(x)
+y = torchSoftmax(attentionPattern)
 error = torch.randn_like(y)
 
-pytorchGrad = torch.autograd.grad(y, x, error, retain_graph=True)[0]
+pytorchGrad = torch.autograd.grad(y, key, error, retain_graph=True)[0]
 
-n = error.shape[-1]
-stdev = torch.sqrt(var + 1e-5).reshape((-1, 1))
-# error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
-norm = error * z
-sums = norm.sum(-1).reshape((-1, 1))
-errSums = error.sum(-1).reshape((-1, 1))
-error = 1 / (n * stdev) * (n * error - errSums - z * sums)
-
+sums = (error * y).sum(-1).reshape((-1, 1))
+error = y * (error - sums) / math.sqrt(embedDim)
+error = (query.T @ error).T
 print(torch.abs(pytorchGrad - error))

@@ -414,6 +414,11 @@ class LLM(LLMBase):
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
         i = int(np.random.choice(self.vocabSize, size=1, p=probabilities)[0])
+        # n = random.random()
+        # i = 0
+        # while n > 0:
+        #     n -= probabilities[i]
+        #     i += 1
 
         return i
 
@@ -421,8 +426,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(50257, 768, 1024, 12, 12)
-        # llm = LLM(50257, 384, 256, 6, 6)
+        # llm = LLM(50257, 768, 1024, 12, 12)
+        llm = LLM(50257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
