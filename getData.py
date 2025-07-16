@@ -67,7 +67,7 @@ def getMyData():
     if myData == "":
         for root, _, files in os.walk("data/training"):
             for name in files:
-                with open(os.path.join(root, name), "r") as file:
+                with open(os.path.join(root, name), "r", encoding="utf-8") as file:
                     myData += file.read() + "\n"
     return myData
 

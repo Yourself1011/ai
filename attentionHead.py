@@ -22,7 +22,7 @@ class AttentionHead:
         self.embedDim = embedDim
         self.headCount = headCount
         self.mask = mask
-        self.tfMask = mask == 0
+        self.tfMask = mask == False
         # self.query = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
@@ -73,19 +73,16 @@ class AttentionHead:
         self, error: npt.NDArray
     ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
         self.valueError = self.weights.T @ error
-        error = np.where(
-            self.tfMask,
-            (error @ self.value.T)
-            * self.weights
-            * (1 - self.weights)
-            / (np.sqrt(self.embedDim)),
-            0,
-        )
+
+        error = error @ self.value.T
+        sums = (error * self.weights).sum(-1).reshape((-1, 1))
+        error = self.weights * (error - sums) / np.sqrt(self.embedDim)
+
         self.queryError = error @ self.key
         self.keyError = (self.query.T @ error).T
         return self.queryError, self.keyError, self.valueError
 
-    def gradientDescent(self, learningRate: float, batchSize: int, t):
+    def gradientDescent(self, learningRate: float, batchSize: int):
         self.queryError: npt.NDArray = np.empty(
             (self.contextSize, self.embedDim // self.headCount)
         )

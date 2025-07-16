@@ -252,7 +252,7 @@ class LLM(LLMBase):
         self.tokens = np.array(input[: self.contextSize + 1])
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = self.tokens.size
+        self.inputLength = min(self.tokens.size, self.contextSize)
         # only the ones we input into the llm
         self.inputTokens = np.pad(
             self.tokens[: self.contextSize],
@@ -298,7 +298,7 @@ class LLM(LLMBase):
         # = s(xi) + sum(s(xj)) - 1
         # = s(xi) + 1 - 1
         # = s(xi)
-        for i in range(self.inputLength):
+        for i in range(min(self.tokens.size, self.contextSize + 1) - 1):
             error[i] = probabilities[i]
             error[i][self.tokens[i + 1]] -= 1
         # print(error.sum())
@@ -327,6 +327,8 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
+        # self.bError += error
+        # self.gError += error * self.z
 
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
@@ -354,7 +356,7 @@ class LLM(LLMBase):
         self, learningRate: float, batchSize: int, t: int, clip: float = 0
     ):
         self.t = t
-        warmupSteps = 2000
+        warmupSteps = 200
         totalSteps = 600_000
         # warmupSteps = 20
         # totalSteps = 6000
@@ -393,7 +395,7 @@ class LLM(LLMBase):
         magSq += np.sum((self.gError) ** 2)
         magSq += np.sum((self.bError / batchSize) ** 2)
 
-        # print(math.sqrt(magSq))
+        print("mag:", math.sqrt(magSq), end=" ")
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
         else:
@@ -411,20 +413,16 @@ class LLM(LLMBase):
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
-        n = random.random()
-        i = 0
-        while n > 0:
-            n -= probabilities[i]
-            i += 1
+        i = int(np.random.choice(self.vocabSize, size=1, p=probabilities)[0])
 
-        return i - 1
+        return i
 
 
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        # llm = LLM(50257, 768, 1024, 12, 12)
-        llm = LLM(50257, 384, 256, 6, 6)
+        llm = LLM(50257, 768, 1024, 12, 12)
+        # llm = LLM(50257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -477,9 +475,11 @@ if __name__ == "__main__":
             lastSave = time.time()
             while True:
                 llm.avgLoss = 0
-                n = math.ceil(step / 600000 * 64)
+                # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
-                # n = 1 if step < 5000 else 480
+                # n = round(2 ** (step / 600000 * math.log2(480)))
+                n = 1 if step < 5000 else 480
+                # n = 1
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
@@ -521,7 +521,8 @@ if __name__ == "__main__":
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
-                llm.gradientDescent(6e-4, n, step, clip=1)
+                # llm.gradientDescent(6e-4, n, step, clip=1)
+                llm.gradientDescent(1e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()

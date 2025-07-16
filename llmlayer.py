@@ -27,6 +27,7 @@ class LLMBase:
         beta2: float = 0.95,
         decay: float = 0.1,
     ):
+        # return change * lr
         if name not in self.m:
             self.m[name] = np.zeros(value.shape)
             self.v[name] = np.zeros(value.shape)
@@ -44,7 +45,6 @@ class LLMBase:
         else:
             res = m / (np.sqrt(v) + 1e-8) + decay * value
 
-        return change * lr
         return lr * res
 
 

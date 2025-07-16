@@ -80,8 +80,11 @@ class Attention(Layer):
         self.gError += error * self.z
         # derivative of layer norm
         n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5)
-        error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
+        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        norm = error * self.z
+        sums = norm.sum(-1).reshape((-1, 1))
+        errSums = error.sum(-1).reshape((-1, 1))
+        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
 
         self.projError += self.combined.T @ error
 
@@ -114,6 +117,7 @@ class Attention(Layer):
 
         self.gError /= batchSize
         self.bError /= batchSize
+        self.batchSize = batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.b -= self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
@@ -130,5 +134,5 @@ class Attention(Layer):
         self.bError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
         # self.error = np.zeros((self.contextSize, self.embedDim))
 
-        # for head in self.heads:
-        #     head.gradientDescent(learningRate, batchSize)
+        for head in self.heads:
+            head.gradientDescent(learningRate, self.batchSize)
