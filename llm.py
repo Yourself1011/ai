@@ -298,7 +298,7 @@ class LLM(LLMBase):
         # = s(xi) + sum(s(xj)) - 1
         # = s(xi) + 1 - 1
         # = s(xi)
-        for i in range(self.inputLength - 1):
+        for i in range(self.inputLength):
             error[i] = probabilities[i]
             error[i][self.tokens[i + 1]] -= 1
         # print(error.sum())
@@ -327,11 +327,13 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
-        self.bError += error
-        self.gError += error * self.z
+
         n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5)
-        error *= self.g * (1 / (n * stdev)) * (n - 1 - self.z**2)
+        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        norm = error * self.z
+        sums = norm.sum(-1).reshape((-1, 1))
+        errSums = error.sum(-1).reshape((-1, 1))
+        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
 
     def getLoss(self):
