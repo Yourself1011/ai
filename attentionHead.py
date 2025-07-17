@@ -56,7 +56,7 @@ class AttentionHead:
             # ).sum(2),
             self.query @ self.key.T,
             -np.inf,
-        ) / (np.sqrt(self.embedDim))
+        ) / (np.sqrt(self.embedDim // self.headCount))
 
         self.weights = softmax(attentionPattern)
         # value = np.matmul(lastLayer, np.matmul(self.valueUp, self.valueDown))
@@ -76,10 +76,10 @@ class AttentionHead:
 
         error = error @ self.value.T
         sums = (error * self.weights).sum(-1).reshape((-1, 1))
-        error = self.weights * (error - sums) / np.sqrt(self.embedDim)
+        error = self.weights * (error - sums) / np.sqrt(self.embedDim // self.headCount)
 
         self.queryError = error @ self.key
-        self.keyError = (self.query.T @ error).T
+        self.keyError = error.T @ self.query
         return self.queryError, self.keyError, self.valueError
 
     def gradientDescent(self, learningRate: float, batchSize: int):

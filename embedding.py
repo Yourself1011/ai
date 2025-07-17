@@ -29,8 +29,6 @@ class Embedding(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.a = self.words[lastLayer] + self.positions
-        # for i in range(self.contextSize):
-        #     self.a[i] = self.words[lastLayer[i]] + self.positions[i]
 
     def backProp(self, error: npt.NDArray):
         for i in range(self.contextSize):
@@ -42,9 +40,8 @@ class Embedding(Layer):
         self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        # self.wordsError += (self.decodeInput.T @ error).T
         self.wordsError += error.T @ self.decodeInput
-        # print(error.shape, self.decodeInput.shape)
+        # print(error.shape, self.words.shape)
         self.error = error @ self.words
 
     def normalizeError(self, batchSize: int):

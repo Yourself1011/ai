@@ -14,6 +14,8 @@ i = 0
 def getData(amt: int, merges):
     global i, tokens, process, queue, buffer
     # print(i, len(tokens))
+    if len(tokens) == 0:
+        tokens = addToBuffer(merges, amt)
     if i + amt + 1 >= len(tokens):
         # if len(tokens) == 0 and len(buffer) == 0:
         #     # first time running it
@@ -43,7 +45,7 @@ def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = getBee()
+        filtered = getMyData()
         # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new

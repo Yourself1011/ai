@@ -79,6 +79,7 @@ class Attention(Layer):
         self.bError += error
         self.gError += error * self.z
         # derivative of layer norm
+        error *= self.g
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
         norm = error * self.z
@@ -126,7 +127,7 @@ class Attention(Layer):
             "proj", self.proj, self.projError, learningRate, t, mult
         )
         self.qkv -= self.adamW("qkv", self.qkv, self.qkvError, learningRate, t, mult)
-
+ 
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
 

@@ -258,6 +258,7 @@ class LLM(LLMBase):
             self.tokens[: self.contextSize],
             (0, max(0, self.contextSize - len(self.tokens))),
         )
+        # print(self.inputTokens, self.tokens.size, self.inputLength)
         # print("tok", time.time() - start)
 
         # start = time.time()
@@ -298,7 +299,8 @@ class LLM(LLMBase):
         # = s(xi) + sum(s(xj)) - 1
         # = s(xi) + 1 - 1
         # = s(xi)
-        for i in range(min(self.tokens.size, self.contextSize + 1) - 1):
+        # print(min(self.tokens.size, self.contextSize + 1))
+        for i in range(self.inputLength):
             error[i] = probabilities[i]
             error[i][self.tokens[i + 1]] -= 1
         # print(error.sum())
@@ -327,9 +329,10 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
-        # self.bError += error
-        # self.gError += error * self.z
+        self.bError += error
+        self.gError += error * self.z
 
+        error *= self.g
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
         norm = error * self.z
@@ -342,11 +345,17 @@ class LLM(LLMBase):
         probabilities = softmax(self.a)
         self.loss = np.zeros((self.contextSize, self.vocabSize))
 
-        for i in range(self.inputLength - 1):
+        # count = 0
+        for i in range(self.inputLength):
             self.loss[i][self.tokens[i + 1]] = -np.log(
                 probabilities[i][self.tokens[i + 1]] + 1e-20
             )
+            # print(np.std(self.a[i]))
+            # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
+                # count += 1
             # print(i, probabilities[i][self.tokens[i + 1]])
+        # print(count)
+        # print(np.mean(-np.sum(probabilities[i] * np.log(probabilities[i] + 1e-20), axis=-1)))
 
     def normalizeError(self, batchSize: int):
         self.gError /= batchSize
@@ -483,13 +492,14 @@ if __name__ == "__main__":
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 1 if step < 5000 else 480
+                n = 1 if step < 5000 else 10
                 # n = 1
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
                     # start = time.time()
                     llm.feedForward(getData(llm.contextSize, llm.merges))
+                    # print(decode(getData(llm.contextSize, llm.merges), llm.vocab))
                     # llm.feedForward(beeMovie)  # if batch % 2 else shrek)
                     # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
                     # print("ff", time.time() - start)
@@ -511,18 +521,18 @@ if __name__ == "__main__":
                     print(
                         # new,
                         "loss",
-                        llm.loss.sum(),
+                        np.log(llm.loss.sum()),
                         f"{time.time() - totalStart}s",
                         "step",
                         step,
                         "batch",
                         batch,
                         "size",
-                        llm.inputLength,
+                        llm.tokens.size,
                         # "sm",
                         # utils.smTime,
                     )
-                    llm.avgLoss += llm.loss.sum()
+                    llm.avgLoss += np.log(llm.loss.sum())
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
