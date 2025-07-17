@@ -4,45 +4,50 @@ import torch
 
 contextSize = 10
 embedDim = 10
-query = torch.randn(contextSize, embedDim, requires_grad=True)
-key = torch.randn(contextSize, embedDim, requires_grad=True)
+lastLayer = torch.randn(contextSize, embedDim, requires_grad=True)
+w = (
+    torch.randn(embedDim, 4 * embedDim, requires_grad=True),
+    torch.randn(embedDim * 4, embedDim, requires_grad=True),
+)
+b = (
+    torch.randn(4 * embedDim, requires_grad=True),
+    torch.randn(embedDim, requires_grad=True),
+)
 
 
-attentionMask = torch.full((contextSize, contextSize), False)
-for i in range(contextSize):
-    attentionMask[i][: i + 1] = True
-
-attentionPattern = torch.where(
-    attentionMask,
-    # (
-    #     np.matmul(lastLayer, self.query)
-    #     * np.matmul(lastLayer, self.key).reshape(
-    #         contextSize, 1, self.embedDim // self.headCount
-    #     )
-    # ).sum(2),
-    query @ key.T,
-    -torch.inf,
-) / (math.sqrt(embedDim))
-
-
-def torchSoftmax(x, T: float = 1):
+def sigmoid(x):
     # global smTime
     # start = time.time()
-    adj = x / T if T != 1 else x
-    exp = torch.e ** (
-        adj - adj.max(-1, keepdims=True).values
-    )  # we subtract the highest number, to keep values from getting too big
-    res = exp / exp.sum(-1, keepdims=True)
+    result = 1 / (1 + torch.exp(-x))
     # smTime += time.time() - start
-    return res
+    return result
 
 
-y = torchSoftmax(attentionPattern)
-error = torch.randn_like(y)
+input = lastLayer
+# start = time.time()
+layer1 = lastLayer @ w[0] + b[0]
+# gelu, tanh, inside = gelu(layer1)
+# use sigmoid approximation instad of tanh
+multiplied = layer1 * 1.702
+sigmoidRes = sigmoid(multiplied)
+gelu = layer1 * sigmoidRes
+layer2 = gelu @ w[1] + b[1]
 
-pytorchGrad = torch.autograd.grad(y, key, error, retain_graph=True)[0]
 
-sums = (error * y).sum(-1).reshape((-1, 1))
-error = y * (error - sums) / math.sqrt(embedDim)
-error = (query.T @ error).T
-print(torch.abs(pytorchGrad - error))
+error = torch.randn_like(layer2)
+
+pytorchGrad = torch.autograd.grad(layer2, b[0], error, retain_graph=True)[0]
+
+bError1 = error.sum(0)
+# print((gelu.T @ error).sum())
+# print(gelu.shape, error.shape)
+wError1 = gelu.T @ error
+geluError = error @ w[1].T
+error = sigmoidRes * (1 + multiplied * (1 - sigmoidRes)) * geluError
+# print(error)
+bError0 = error.sum(0)
+# print(input.shape, error.shape)
+wError0 = input.T @ error
+# print(error.shape, w[0].shape)
+# error = error @ w[0].T
+print(torch.abs(pytorchGrad - bError0))
