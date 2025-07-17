@@ -25,8 +25,8 @@ class Mlp(Layer):
         self.contextSize = contextSize
         self.embedDim = embedDim
         self.w: list[npt.NDArray] = [
-            np.random.normal(0, 1, (embedDim, 4 * embedDim)),
-            np.random.normal(0, 1, (4 * embedDim, embedDim)),
+            np.random.normal(0, 0.02, (embedDim, 4 * embedDim)),
+            np.random.normal(0, 0.02, (4 * embedDim, embedDim)),
         ]
         self.b: list[npt.NDArray] = [
             np.zeros(4 * embedDim),

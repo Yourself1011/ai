@@ -96,11 +96,11 @@ stdev = torch.sqrt(var + 1e-5).reshape((-1, 1))
 norm = error * z
 sums = norm.sum(-1).reshape((-1, 1))
 errSums = error.sum(-1).reshape((-1, 1))
-lnError = 1 / (n * stdev) * (n * error - errSums - z * sums)
+error = 1 / (n * stdev) * (n * error - errSums - z * sums)
 
-projError = combined.T @ lnError
+projError = combined.T @ error
 
-splitError = torch.split(lnError @ proj.T, embedDim // headCount, dim=1)
+splitError = torch.split(error @ proj.T, embedDim // headCount, dim=1)
 # print(splitError[0].shape)
 qkvErrors = [[], [], []]
 

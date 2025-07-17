@@ -16,8 +16,8 @@ class Embedding(Layer):
     def __init__(self, vocabSize: int, embedDim: int, contextSize: int):
         self.embedDim = embedDim
         self.vocabSize = vocabSize
-        self.words = np.random.normal(size=(vocabSize, embedDim))
-        self.positions = np.random.normal(size=(contextSize, embedDim))
+        self.words = np.random.normal(0, 0.02, size=(vocabSize, embedDim))
+        self.positions = np.random.normal(0, 0.02, size=(contextSize, embedDim))
         self.contextSize = contextSize
         self.error = np.zeros((contextSize, embedDim))
         self.wordsError = np.zeros((vocabSize, embedDim))

@@ -188,7 +188,7 @@ def load(vocabSize: int):
             for name in files:
                 with open(os.path.join(root, name), "r") as file:
                     data += file.read() + "\n"
-        while len(data) < 10_000_000:
+        while len(data) < 5_000_000:
             data += pj() + "\n"
             print(len(data))
         (merges, vocab) = tokenizer(data, vocabSize)
@@ -206,7 +206,7 @@ def load(vocabSize: int):
 
 
 if __name__ == "__main__":
-    (merges, vocab) = load(50257)
+    (merges, vocab) = load(5257)
 
     # print(merges)
     # print(vocab)
