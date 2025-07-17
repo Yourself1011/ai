@@ -1,53 +1,135 @@
 import math
+from numpy import require
 import torch
 # sanity checks
 
 contextSize = 10
 embedDim = 10
-lastLayer = torch.randn(contextSize, embedDim, requires_grad=True)
-w = (
-    torch.randn(embedDim, 4 * embedDim, requires_grad=True),
-    torch.randn(embedDim * 4, embedDim, requires_grad=True),
-)
-b = (
-    torch.randn(4 * embedDim, requires_grad=True),
-    torch.randn(embedDim, requires_grad=True),
-)
+headCount = 1
 
 
-def sigmoid(x):
+attentionMask = torch.full((contextSize, contextSize), False)
+for i in range(contextSize):
+    attentionMask[i][: i + 1] = True
+
+
+def softmax(x, T: float = 1):
     # global smTime
     # start = time.time()
-    result = 1 / (1 + torch.exp(-x))
+    adj = x / T if T != 1 else x
+    exp = torch.e ** (
+        adj - adj.max(-1, keepdims=True).values
+    )  # we subtract the highest number, to keep values from getting too big
+    res = exp / exp.sum(-1, keepdims=True)
     # smTime += time.time() - start
-    return result
+    return res
 
+
+lastLayer = torch.randn(contextSize, embedDim, requires_grad=True)
+qkv = torch.randn(embedDim, embedDim * 3, requires_grad=True)
+proj = torch.randn(embedDim, embedDim, requires_grad=True)
+
+g = torch.randn(contextSize, embedDim, requires_grad=True)
+b = torch.randn(contextSize, embedDim, requires_grad=True)
 
 input = lastLayer
-# start = time.time()
-layer1 = lastLayer @ w[0] + b[0]
-# gelu, tanh, inside = gelu(layer1)
-# use sigmoid approximation instad of tanh
-multiplied = layer1 * 1.702
-sigmoidRes = sigmoid(multiplied)
-gelu = layer1 * sigmoidRes
-layer2 = gelu @ w[1] + b[1]
+q, k, v = [
+    torch.split(x, embedDim // headCount, dim=1)
+    for x in torch.split(lastLayer @ qkv, embedDim, dim=1)
+]
 
 
-error = torch.randn_like(layer2)
+query = q[0]
+key = k[0]
+value = v[0]
+attentionPattern = torch.where(
+    attentionMask,
+    # (
+    #     torch.matmul(lastLayer, query)
+    #     * torch.matmul(lastLayer, key).reshape(
+    #         contextSize, 1, embedDim // headCount
+    #     )
+    # ).sum(2),
+    query @ key.T,
+    -torch.inf,
+) / (math.sqrt(embedDim))
 
-pytorchGrad = torch.autograd.grad(layer2, b[0], error, retain_graph=True)[0]
+weights = softmax(attentionPattern)
+# value = torch.matmul(lastLayer, torch.matmul(valueUp, valueDown))
+# print("alskdjf")
+# change = (
+#     value.reshape(1, contextSize, embedDim)
+#     * weights.reshape(contextSize, contextSize, 1)
+# ).sum(1)
 
-bError1 = error.sum(0)
-# print((gelu.T @ error).sum())
-# print(gelu.shape, error.shape)
-wError1 = gelu.T @ error
-geluError = error @ w[1].T
-error = sigmoidRes * (1 + multiplied * (1 - sigmoidRes)) * geluError
-# print(error)
-bError0 = error.sum(0)
-# print(input.shape, error.shape)
-wError0 = input.T @ error
-# print(error.shape, w[0].shape)
-# error = error @ w[0].T
-print(torch.abs(pytorchGrad - bError0))
+headA = weights @ value
+
+
+def layerNorm(x, g, b):
+    mean = x.mean(axis=-1, keepdims=True)
+    var = x.var(axis=-1, keepdims=True, unbiased=False)
+
+    z = (x - mean) / torch.sqrt(var + 1e-5)
+    result = z * g + b
+    # print(result.var(axis=-1))
+    # print(result.mean(axis=-1))
+    # smTime += time.time() - start
+    return result, z, mean, var
+
+
+combined = headA
+preLN = combined @ proj
+a, z, mean, var = layerNorm(preLN, g, b)
+
+error = torch.randn_like(a)
+
+pytorchGrad = torch.autograd.grad(a, qkv, error, retain_graph=True)[0]
+
+bError = error
+gError = error * z
+
+# !! CHANGE !!
+error *= g
+# derivative of layer norm
+n = error.shape[-1]
+stdev = torch.sqrt(var + 1e-5).reshape((-1, 1))
+norm = error * z
+sums = norm.sum(-1).reshape((-1, 1))
+errSums = error.sum(-1).reshape((-1, 1))
+lnError = 1 / (n * stdev) * (n * error - errSums - z * sums)
+
+projError = combined.T @ lnError
+
+splitError = torch.split(lnError @ proj.T, embedDim // headCount, dim=1)
+# print(splitError[0].shape)
+qkvErrors = [[], [], []]
+
+error = splitError[0]
+valueError = weights.T @ error
+
+error = error @ value.T
+sums = (error * weights).sum(-1).reshape((-1, 1))
+error = weights * (error - sums) / math.sqrt(embedDim)
+
+queryError = error @ key
+keyError = error.T @ query
+
+qkvErrors[0].append(queryError)
+qkvErrors[1].append(keyError)
+qkvErrors[2].append(valueError)
+# qkvErrors[0].append(
+#     torch.zeros((contextSize, embedDim // headCount))
+# )
+# qkvErrors[1].append(
+#     torch.zeros((contextSize, embedDim // headCount))
+# )
+# qkvErrors[2].append(
+#     torch.zeros((contextSize, embedDim // headCount))
+# )
+
+error = torch.hstack([torch.hstack(x) for x in qkvErrors])
+qkvError = input.T @ error
+# print(error.shape, qkv.shape)
+error = error @ qkv.T
+
+print(torch.abs(pytorchGrad - qkvError))
