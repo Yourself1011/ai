@@ -492,7 +492,7 @@ if __name__ == "__main__":
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 1 if step < 5000 else 10
+                n = 1 if step < 5000 else 100
                 # n = 1
                 for batch in range(n):
                     totalStart = time.time()
