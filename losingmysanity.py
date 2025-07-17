@@ -5,7 +5,7 @@ import torch
 
 contextSize = 10
 embedDim = 10
-headCount = 1
+headCount = 2
 
 
 attentionMask = torch.full((contextSize, contextSize), False)
@@ -65,6 +65,32 @@ weights = softmax(attentionPattern)
 headA = weights @ value
 
 
+query1 = q[1]
+key1 = k[1]
+value1 = v[1]
+attentionPattern1 = torch.where(
+    attentionMask,
+    # (
+    #     torch.matmul(lastLayer, query)
+    #     * torch.matmul(lastLayer, key).reshape(
+    #         contextSize, 1, embedDim // headCount
+    #     )
+    # ).sum(2),
+    query1 @ key1.T,
+    -torch.inf,
+) / (math.sqrt(embedDim))
+
+weights1 = softmax(attentionPattern1)
+# value = torch.matmul(lastLayer, torch.matmul(valueUp, valueDown))
+# print("alskdjf")
+# change = (
+#     value.reshape(1, contextSize, embedDim)
+#     * weights.reshape(contextSize, contextSize, 1)
+# ).sum(1)
+
+headB = weights1 @ value1
+
+
 def layerNorm(x, g, b):
     mean = x.mean(axis=-1, keepdims=True)
     var = x.var(axis=-1, keepdims=True, unbiased=False)
@@ -77,13 +103,13 @@ def layerNorm(x, g, b):
     return result, z, mean, var
 
 
-combined = headA
+combined = torch.hstack([headA, headB])
 preLN = combined @ proj
 a, z, mean, var = layerNorm(preLN, g, b)
 
 error = torch.randn_like(a)
 
-pytorchGrad = torch.autograd.grad(a, qkv, error, retain_graph=True)[0]
+pytorchGrad = torch.autograd.grad(a, lastLayer, error, retain_graph=True)[0]
 
 bError = error
 gError = error * z
@@ -117,6 +143,20 @@ keyError = error.T @ query
 qkvErrors[0].append(queryError)
 qkvErrors[1].append(keyError)
 qkvErrors[2].append(valueError)
+
+error = splitError[1]
+valueError = weights1.T @ error
+
+error = error @ value1.T
+sums = (error * weights1).sum(-1).reshape((-1, 1))
+error = weights1 * (error - sums) / math.sqrt(embedDim)
+
+queryError = error @ key1
+keyError = error.T @ query1
+
+qkvErrors[0].append(queryError)
+qkvErrors[1].append(keyError)
+qkvErrors[2].append(valueError)
 # qkvErrors[0].append(
 #     torch.zeros((contextSize, embedDim // headCount))
 # )
@@ -132,4 +172,4 @@ qkvError = input.T @ error
 # print(error.shape, qkv.shape)
 error = error @ qkv.T
 
-print(torch.abs(pytorchGrad - qkvError))
+print(torch.abs(pytorchGrad - error))
