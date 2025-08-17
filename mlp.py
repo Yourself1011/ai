@@ -64,21 +64,22 @@ class Mlp(Layer):
     def backProp(self, error: npt.NDArray):
         self.betaError += error
         self.gError += error * self.z
+
         # derivative of layer norm
         error *= self.g
         n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        stdev = np.sqrt(self.var + 1e-5)
         norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
+        sums = norm.sum(-1, keepdims=True)
+        errSums = error.sum(-1, keepdims=True)
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
+
         # print(error.shape)
         self.bError[1] += error.sum(0)
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
         self.wError[1] += self.gelu.T @ error
-        error = self.sigmoid * (
-            1 + self.multiplied * (1 - self.sigmoid)) * (error @ self.w[1].T)
+        error = self.sigmoid * (1 + self.multiplied * (1 - self.sigmoid)) * (error @ self.w[1].T)
         
         # print(error)
         self.bError[0] += error.sum(0)
@@ -99,18 +100,18 @@ class Mlp(Layer):
         self.error /= batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        self.beta -= self.adamW(
+        self.beta = self.adamW(
             "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
         )
-        self.g -= self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
-        self.b[1] -= self.adamW(
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.b[1] = self.adamW(
            "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
         )
-        self.w[1] -= self.adamW("w1", self.w[1], self.wError[1], learningRate, t, mult)
-        self.b[0] -= self.adamW(
+        self.w[1] = self.adamW("w1", self.w[1], self.wError[1], learningRate, t, mult)
+        self.b[0] = self.adamW(
             "b0", self.b[0], self.bError[0], learningRate, t, mult, decay=0
         )
-        self.w[0] -= self.adamW("w0", self.w[0], self.wError[0], learningRate, t, mult)
+        self.w[0] = self.adamW("w0", self.w[0], self.wError[0], learningRate, t, mult)
 
         self.wError: list[npt.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),

@@ -17,10 +17,12 @@ class Embedding(Layer):
         self.embedDim = embedDim
         self.vocabSize = vocabSize
         self.words = np.random.normal(0, 0.02, size=(vocabSize, embedDim))
+        self.decodeWords = np.random.normal(0, 0.02, size=(vocabSize, embedDim))
         self.positions = np.random.normal(0, 0.02, size=(contextSize, embedDim))
         self.contextSize = contextSize
         self.error = np.zeros((contextSize, embedDim))
         self.wordsError = np.zeros((vocabSize, embedDim))
+        self.decodeWordsError = np.zeros((vocabSize, embedDim))
         self.positionsError = np.zeros((contextSize, embedDim))
         self.a = np.empty((contextSize, embedDim))
         self.decoded = np.empty(vocabSize)
@@ -28,34 +30,41 @@ class Embedding(Layer):
 
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
+        # print(self.words[lastLayer].shape, self.positions.shape)
         self.a = self.words[lastLayer] + self.positions
 
     def backProp(self, error: npt.NDArray):
+        counts = np.bincount(self.input, minlength=self.vocabSize)
         for i in range(self.contextSize):
-            self.wordsError[self.input[i]] += error[i]
-        self.positionsError += error
+            self.wordsError[self.input[i]] += error[i] / counts[self.input[i]]
+        self.positionsError += error / self.contextSize
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
-        self.decoded = lastLayer @ self.words.T
+        self.decoded = lastLayer @ self.decodeWords.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        self.wordsError += error.T @ self.decodeInput
+        self.decodeWordsError += (error.T @ self.decodeInput) / self.contextSize
         # print(error.shape, self.words.shape)
-        self.error = error @ self.words
+        self.error = error @ self.decodeWords
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize
+        self.decodeWordsError /= batchSize
         self.positionsError /= batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        self.words -= self.adamW(
+        self.words = self.adamW(
             "words", self.words, self.wordsError, learningRate, t, mult
         )
-        self.positions -= self.adamW(
+        self.decodeWords = self.adamW(
+            "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult
+        )
+        self.positions = self.adamW(
             "positions", self.positions, self.positionsError, learningRate, t, mult
         )
 
         # self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))
+        self.decodeWordsError = np.zeros((self.vocabSize, self.embedDim))
         self.positionsError = np.zeros((self.contextSize, self.embedDim))

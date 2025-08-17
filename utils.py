@@ -38,8 +38,8 @@ def gelu(x):
 def layerNorm(x: npt.NDArray, g: npt.NDArray, b: npt.NDArray):
     # global smTime
     # start = time.time()
-    mean = np.mean(x, axis=-1, keepdims=True)
-    var = np.var(x, axis=-1, keepdims=True)
+    mean = x.mean(axis=-1, keepdims=True)
+    var = x.var(axis=-1, keepdims=True)
 
     z = (x - mean) / np.sqrt(var + 1e-5)
     result = z * g + b

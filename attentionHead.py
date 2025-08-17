@@ -48,15 +48,10 @@ class AttentionHead:
         self.value = v
         attentionPattern = np.where(
             self.mask,
-            # (
-            #     np.matmul(lastLayer, self.query)
-            #     * np.matmul(lastLayer, self.key).reshape(
-            #         contextSize, 1, self.embedDim // self.headCount
-            #     )
-            # ).sum(2),
             self.query @ self.key.T,
             -np.inf,
         ) / (np.sqrt(self.embedDim // self.headCount))
+        # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
         self.weights = softmax(attentionPattern)
         # value = np.matmul(lastLayer, np.matmul(self.valueUp, self.valueDown))
@@ -76,7 +71,7 @@ class AttentionHead:
 
         error = error @ self.value.T
         sums = (error * self.weights).sum(-1).reshape((-1, 1))
-        error = self.weights * (error - sums) / np.sqrt(self.embedDim // self.headCount)
+        error = self.weights * (error - sums) / np.sqrt(self.embedDim)
 
         self.queryError = error @ self.key
         self.keyError = error.T @ self.query

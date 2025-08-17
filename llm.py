@@ -60,6 +60,7 @@ class LLM(LLMBase):
         attentionMask = np.full((self.contextSize, self.contextSize), False)
         for i in range(self.contextSize):
             attentionMask[i][: i + 1] = True
+        # attentionMask = np.full((self.contextSize, self.contextSize), True)
 
         self.attentions = [
             Attention(self.contextSize, self.embedDim, self.headCount, attentionMask)
@@ -262,6 +263,7 @@ class LLM(LLMBase):
         # print("tok", time.time() - start)
 
         # start = time.time()
+        # print(self.embedding.positions.shape)
         self.embedding.feedForward(self.inputTokens)
         # print("emb", time.time() - start)
         # start = time.time()
@@ -343,15 +345,16 @@ class LLM(LLMBase):
 
     def getLoss(self):
         probabilities = softmax(self.a)
-        self.loss = np.zeros((self.contextSize, self.vocabSize))
+        self.loss = np.zeros((self.contextSize))
 
         # count = 0
         for i in range(self.inputLength):
-            self.loss[i][self.tokens[i + 1]] = -np.log(
+            self.loss[i] = -np.log(
                 probabilities[i][self.tokens[i + 1]] + 1e-20
             )
             # print(np.std(self.a[i]))
             # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
+            # print(decode([int(np.argmax(probabilities[i]))], self.vocab), end="")
                 # count += 1
             # print(i, probabilities[i][self.tokens[i + 1]])
         # print(count)
@@ -365,7 +368,7 @@ class LLM(LLMBase):
         self, learningRate: float, batchSize: int, t: int, clip: float = 0
     ):
         self.t = t
-        warmupSteps = 200
+        warmupSteps = 50
         totalSteps = 600_000
         # warmupSteps = 20
         # totalSteps = 6000
@@ -414,8 +417,8 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, t, mult)
             self.attentions[i].gradientDescent(learningRate, t, mult)
-        self.b -= self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        self.g -= self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
         self.gError = np.ones((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
@@ -435,8 +438,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        # llm = LLM(50257, 768, 1024, 12, 12)
-        llm = LLM(50257, 384, 256, 6, 6)
+        llm = LLM(50257, 768, 1024, 12, 12)
+        # llm = LLM(5257, 384, 256, 6, 1)
         start = time.time()
         try:
             llm.load()
@@ -492,8 +495,8 @@ if __name__ == "__main__":
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 1 if step < 5000 else 100
-                # n = 1
+                # n = 480
+                n = 2
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
@@ -521,7 +524,7 @@ if __name__ == "__main__":
                     print(
                         # new,
                         "loss",
-                        np.log(llm.loss.sum()),
+                        llm.loss.mean(),
                         f"{time.time() - totalStart}s",
                         "step",
                         step,
@@ -532,7 +535,7 @@ if __name__ == "__main__":
                         # "sm",
                         # utils.smTime,
                     )
-                    llm.avgLoss += np.log(llm.loss.sum())
+                    llm.avgLoss += llm.loss.mean()
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
