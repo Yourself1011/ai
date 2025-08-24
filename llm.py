@@ -187,8 +187,8 @@ class LLM(LLMBase):
             if k not in ["b", "g", "pos", "words"]
         }
         for i in range(self.layerCount):
-            self.attentions[i].qkv = data["attnqkv"][i]
-            self.attentions[i].proj = data["attnproj"][i]
+            # self.attentions[i].qkv = data["attnqkv"][i]
+            # self.attentions[i].proj = data["attnproj"][i]
             self.attentions[i].g = data["attng"][i]
             self.attentions[i].b = data["attnb"][i]
             self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
@@ -359,6 +359,7 @@ class LLM(LLMBase):
             # print(i, probabilities[i][self.tokens[i + 1]])
         # print(count)
         # print(np.mean(-np.sum(probabilities[i] * np.log(probabilities[i] + 1e-20), axis=-1)))
+        # print(np.sort(probabilities[-1])[::-1])
 
     def normalizeError(self, batchSize: int):
         self.gError /= batchSize
@@ -368,7 +369,7 @@ class LLM(LLMBase):
         self, learningRate: float, batchSize: int, t: int, clip: float = 0
     ):
         self.t = t
-        warmupSteps = 50
+        warmupSteps = 100
         totalSteps = 600_000
         # warmupSteps = 20
         # totalSteps = 6000
@@ -396,16 +397,16 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             magSq += np.sum((self.attentions[i].qkvError) ** 2)
             magSq += np.sum((self.attentions[i].projError) ** 2)
-            magSq += np.sum((self.attentions[i].gError) ** 2)
-            magSq += np.sum((self.attentions[i].bError) ** 2)
+            # magSq += np.sum((self.attentions[i].gError) ** 2)
+            # magSq += np.sum((self.attentions[i].bError) ** 2)
             magSq += np.sum((self.mlps[i].wError[0]) ** 2)
             magSq += np.sum((self.mlps[i].wError[1]) ** 2)
             magSq += np.sum((self.mlps[i].bError[0]) ** 2)
             magSq += np.sum((self.mlps[i].bError[1]) ** 2)
-            magSq += np.sum((self.mlps[i].gError) ** 2)
-            magSq += np.sum((self.mlps[i].betaError) ** 2)
-        magSq += np.sum((self.gError) ** 2)
-        magSq += np.sum((self.bError / batchSize) ** 2)
+            # magSq += np.sum((self.mlps[i].gError) ** 2)
+            # magSq += np.sum((self.mlps[i].betaError) ** 2)
+        # magSq += np.sum((self.gError) ** 2)
+        # magSq += np.sum((self.bError) ** 2)
 
         print("mag:", math.sqrt(magSq), end=" ")
         if clip != 0 and magSq > clip**2:
@@ -413,12 +414,14 @@ class LLM(LLMBase):
         else:
             mult = 1
 
+        mult = 1
+
         self.embedding.gradientDescent(learningRate, t, mult)
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, t, mult)
             self.attentions[i].gradientDescent(learningRate, t, mult)
-        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
         self.gError = np.ones((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
@@ -438,8 +441,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(50257, 768, 1024, 12, 12)
-        # llm = LLM(5257, 384, 256, 6, 1)
+        # llm = LLM(50257, 768, 1024, 12, 12)
+        llm = LLM(5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -496,7 +499,7 @@ if __name__ == "__main__":
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 2
+                n = 1
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
@@ -540,7 +543,7 @@ if __name__ == "__main__":
 
                 start = time.time()
                 # llm.gradientDescent(6e-4, n, step, clip=1)
-                llm.gradientDescent(1e-3, n, step, clip=1)
+                llm.gradientDescent(6e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()

@@ -40,10 +40,10 @@ class LLMBase:
         m = self.m[name] / (1 - beta1**t)
         v = self.v[name] / (1 - beta2**t)
 
-        # if decay == 0:
-        return value - m / (np.sqrt(v) + 1e-8) * lr
-        # else:
-            # return (value - m / (np.sqrt(v) + 1e-8) * lr) * (1 - decay * lr)
+        if decay == 0:
+            return value - m / (np.sqrt(v) + 1e-8) * lr
+        else:
+            return (value - m / (np.sqrt(v) + 1e-8) * lr) * (1 - decay * lr)
 
 
 class Layer(LLMBase):

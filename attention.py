@@ -52,8 +52,8 @@ class Attention(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         q, k, v = [
-            np.split(x, self.headCount, axis=1)
-            for x in np.split(lastLayer @ self.qkv, 3, axis=1)
+            np.split(x, self.headCount, axis=-1)
+            for x in np.split(lastLayer @ self.qkv, 3, axis=-1)
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
@@ -61,6 +61,7 @@ class Attention(Layer):
             self.heads[i].feedForward(lastLayer, q[i], k[i], v[i])
             # print(time.time() - start)
             attentionOutputs.append(self.heads[i].a)
+        # print(self.qkv.max())
 
         # res = [
         #     self.pool.apply_async(
@@ -89,7 +90,7 @@ class Attention(Layer):
 
         self.projError += self.combined.T @ error
 
-        splitError = np.split(error @ self.proj.T, self.headCount, axis=1)
+        splitError = np.split(error @ self.proj.T, self.headCount, axis=-1)
         # print(splitError[0].shape)
         qkvErrors = [[], [], []]
         for i in range(len(self.heads)):
@@ -107,7 +108,10 @@ class Attention(Layer):
             #     np.zeros((self.contextSize, self.embedDim // self.headCount))
             # )
 
-        error = np.hstack([np.hstack(x) for x in qkvErrors])
+        queryError = np.hstack(qkvErrors[0])
+        keyError = np.hstack(qkvErrors[1])
+        valueError = np.hstack(qkvErrors[2])
+        error = np.hstack([queryError, keyError, valueError])
         self.qkvError += self.input.T @ error
         # print(error.shape, self.qkv.shape)
         self.error = error @ self.qkv.T
@@ -121,8 +125,8 @@ class Attention(Layer):
         self.batchSize = batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.proj = self.adamW(
             "proj", self.proj, self.projError, learningRate, t, mult
         )

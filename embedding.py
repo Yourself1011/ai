@@ -32,6 +32,7 @@ class Embedding(Layer):
         self.input = lastLayer
         # print(self.words[lastLayer].shape, self.positions.shape)
         self.a = self.words[lastLayer] + self.positions
+        # print(self.words.max(0))
 
     def backProp(self, error: npt.NDArray):
         counts = np.bincount(self.input, minlength=self.vocabSize)
@@ -41,30 +42,31 @@ class Embedding(Layer):
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
-        self.decoded = lastLayer @ self.decodeWords.T
+        self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        self.decodeWordsError += (error.T @ self.decodeInput) / self.contextSize
+        self.wordsError += (error.T @ self.decodeInput) / self.contextSize
         # print(error.shape, self.words.shape)
-        self.error = error @ self.decodeWords
+        self.error = error @ self.words
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize
-        self.decodeWordsError /= batchSize
+        # self.decodeWordsError /= batchSize
         self.positionsError /= batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.words = self.adamW(
             "words", self.words, self.wordsError, learningRate, t, mult
         )
-        self.decodeWords = self.adamW(
-            "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult
-        )
         self.positions = self.adamW(
             "positions", self.positions, self.positionsError, learningRate, t, mult
         )
 
+        # self.decodeWords = self.adamW(
+            # "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult
+        # )
+
         # self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))
-        self.decodeWordsError = np.zeros((self.vocabSize, self.embedDim))
+        # self.decodeWordsError = np.zeros((self.vocabSize, self.embedDim))
         self.positionsError = np.zeros((self.contextSize, self.embedDim))

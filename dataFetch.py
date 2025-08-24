@@ -14,7 +14,9 @@ i = 0
 def getData(amt: int, merges):
     global i, tokens, process, queue, buffer
     tokens = encode(getBee(), merges) + [256]
-    i = 0 if i == 1 else 1
+    i += 1
+    if i == 1:
+        i = 0
     return tokens[i * amt : (i + 1) * amt + 1]
     # print(i, len(tokens))
     if len(tokens) == 0:

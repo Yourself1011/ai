@@ -100,10 +100,10 @@ class Mlp(Layer):
         self.error /= batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        self.beta = self.adamW(
-            "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
-        )
-        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        # self.beta = self.adamW(
+            # "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
+        # )
+        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.b[1] = self.adamW(
            "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
         )

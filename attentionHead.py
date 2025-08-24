@@ -49,7 +49,7 @@ class AttentionHead:
         attentionPattern = np.where(
             self.mask,
             self.query @ self.key.T,
-            -np.inf,
+            -1e9,
         ) / (np.sqrt(self.embedDim // self.headCount))
         # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
@@ -71,7 +71,7 @@ class AttentionHead:
 
         error = error @ self.value.T
         sums = (error * self.weights).sum(-1).reshape((-1, 1))
-        error = self.weights * (error - sums) / np.sqrt(self.embedDim)
+        error = self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
 
         self.queryError = error @ self.key
         self.keyError = error.T @ self.query
