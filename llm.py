@@ -317,7 +317,7 @@ class LLM(LLMBase):
         error = probabilities * (error - sums)
 
         pytorchGrad = np.autograd.grad(
-            probabilities, self.embedding.words, error, retain_graph=True
+            probabilities, self.mlps[1].w[0], error, retain_graph=True
         )[0]
 
         self.embedding.decodeBackProp(error)
@@ -350,7 +350,7 @@ class LLM(LLMBase):
         errSums = error.sum(-1).reshape((-1, 1))
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
-        print(pytorchGrad - self.embedding.wordsError)
+        print(np.max(np.abs(pytorchGrad - self.mlps[1].wError[0])).detach().numpy())
 
     def getLoss(self):
         probabilities = softmax(self.a)
@@ -427,8 +427,8 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, t, mult)
             self.attentions[i].gradientDescent(learningRate, t, mult)
-        # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
         self.gError = np.ones((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
@@ -506,7 +506,7 @@ if __name__ == "__main__":
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 1
+                n = 2
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
