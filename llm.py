@@ -352,13 +352,11 @@ class LLM(LLMBase):
 
         # count = 0
         for i in range(self.inputLength):
-            self.loss[i] = -np.log(
-                probabilities[i][self.tokens[i + 1]] + 1e-20
-            )
+            self.loss[i] = -np.log(probabilities[i][self.tokens[i + 1]] + 1e-20)
             # print(np.std(self.a[i]))
             # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
             # print(decode([int(np.argmax(probabilities[i]))], self.vocab), end="")
-                # count += 1
+            # count += 1
             # print(i, probabilities[i][self.tokens[i + 1]])
         # print(count)
         # print(np.mean(-np.sum(probabilities[i] * np.log(probabilities[i] + 1e-20), axis=-1)))
@@ -423,8 +421,8 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             self.mlps[i].gradientDescent(learningRate, t, mult)
             self.attentions[i].gradientDescent(learningRate, t, mult)
-        # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
         self.gError = np.ones((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
@@ -502,7 +500,7 @@ if __name__ == "__main__":
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 1
+                n = 2
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0

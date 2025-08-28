@@ -125,13 +125,11 @@ class Attention(Layer):
         self.batchSize = batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
-        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
-        self.proj = self.adamW(
-            "proj", self.proj, self.projError, learningRate, t, mult
-        )
+        self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.proj = self.adamW("proj", self.proj, self.projError, learningRate, t, mult)
         self.qkv = self.adamW("qkv", self.qkv, self.qkvError, learningRate, t, mult)
- 
+
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
 

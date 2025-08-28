@@ -79,8 +79,12 @@ class Mlp(Layer):
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
         self.wError[1] += self.gelu.T @ error
-        error = self.sigmoid * (1 + self.multiplied * (1 - self.sigmoid)) * (error @ self.w[1].T)
-        
+        error = (
+            self.sigmoid
+            * (1 + self.multiplied * (1 - self.sigmoid))
+            * (error @ self.w[1].T)
+        )
+
         # print(error)
         self.bError[0] += error.sum(0)
         # print(self.input.shape, error.shape)
@@ -100,12 +104,12 @@ class Mlp(Layer):
         self.error /= batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
-        # self.beta = self.adamW(
-            # "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
-        # )
-        # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
+        self.beta = self.adamW(
+            "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
+        )
+        self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.b[1] = self.adamW(
-           "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
+            "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
         )
         self.w[1] = self.adamW("w1", self.w[1], self.wError[1], learningRate, t, mult)
         self.b[0] = self.adamW(
