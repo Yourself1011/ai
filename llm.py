@@ -312,6 +312,9 @@ class LLM(LLMBase):
         #     0,
         # )
         # start = time.time()
+        sums = (error * probabilities).sum(-1).reshape((-1, 1))
+        error = probabilities * (error - sums)
+
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
         # print(time.time() - start)
