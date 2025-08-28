@@ -5,7 +5,7 @@ import sys
 import time
 from multiprocessing import Pool
 
-import numpy as np
+import torch as np
 
 from tokenizer import decode, encode
 
@@ -50,8 +50,8 @@ class LLM(LLMBase):
         (self.merges, self.vocab) = load(vocabSize)
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
-        self.g = np.ones((contextSize, embedDim))
-        self.b = np.zeros((contextSize, embedDim))
+        self.g = np.ones((contextSize, embedDim), requires_grad=True)
+        self.b = np.zeros((contextSize, embedDim), requires_grad=True)
         self.gError = np.ones((contextSize, embedDim))
         self.bError = np.zeros((contextSize, embedDim))
 
@@ -68,7 +68,7 @@ class LLM(LLMBase):
         ]
 
         self.mlps = [Mlp(self.contextSize, self.embedDim) for _ in range(layerCount)]
-        self.a = np.empty((contextSize, vocabSize))
+        self.a = np.empty((contextSize, vocabSize), requires_grad=True)
         self.inputLength = 0
         self.loss = np.ones((self.contextSize, self.vocabSize))
         # self.pool = pool
@@ -103,25 +103,25 @@ class LLM(LLMBase):
             mlpg.append(self.mlps[i].g)
             mlpbeta.append(self.mlps[i].beta)
 
-        with open("data/params.npz", "wb") as f:
-            np.savez(
-                f,
-                attnqkv=np.hstack(attnqkv),
-                attnproj=np.hstack(attnproj),
-                attng=np.hstack(attng),
-                attnb=np.hstack(attnb),
-                mlpw0=np.hstack(mlpw0),
-                mlpw1=np.hstack(mlpw1),
-                mlpb0=np.hstack(mlpb0),
-                mlpb1=np.hstack(mlpb1),
-                mlpg=np.hstack(mlpg),
-                mlpbeta=np.hstack(mlpbeta),
-                b=self.b,
-                g=self.g,
-                pos=self.embedding.positions,
-                words=self.embedding.words,
-                allow_pickle=False,
-            )
+        # with open("data/params.npz", "wb") as f:
+        # np.savez(
+        #     f,
+        #     attnqkv=np.hstack(attnqkv),
+        #     attnproj=np.hstack(attnproj),
+        #     attng=np.hstack(attng),
+        #     attnb=np.hstack(attnb),
+        #     mlpw0=np.hstack(mlpw0),
+        #     mlpw1=np.hstack(mlpw1),
+        #     mlpb0=np.hstack(mlpb0),
+        #     mlpb1=np.hstack(mlpb1),
+        #     mlpg=np.hstack(mlpg),
+        #     mlpbeta=np.hstack(mlpbeta),
+        #     b=self.b,
+        #     g=self.g,
+        #     pos=self.embedding.positions,
+        #     words=self.embedding.words,
+        #     allow_pickle=False,
+        # )
 
         data = {}
         stackData = {}
@@ -155,14 +155,14 @@ class LLM(LLMBase):
         for k, v in self.embedding.v.items():
             data["ev" + k] = v
 
-        with open("data/adamw.npz", "wb") as f:
-            np.savez(
-                f,
-                **data,
-                **stackData,
-                t=self.t,
-                allow_pickle=False,
-            )
+        # with open("data/adamw.npz", "wb") as f:
+        #     np.savez(
+        #         f,
+        #         **data,
+        #         **stackData,
+        #         t=self.t,
+        #         allow_pickle=False,
+        #     )
         # print(data["smb"][0][0])
 
         with open("data/history.csv", "w", newline="") as file:
@@ -182,19 +182,19 @@ class LLM(LLMBase):
         self.embedding.words = data["words"]
 
         data = {
-            k: np.split(data[k], self.layerCount, axis=-1)
+            k: np.split(data[k], self.layerCount, dim=-1)
             for k in keys
             if k not in ["b", "g", "pos", "words"]
         }
-        for i in range(self.layerCount):
-            # self.attentions[i].qkv = data["attnqkv"][i]
-            # self.attentions[i].proj = data["attnproj"][i]
-            self.attentions[i].g = data["attng"][i]
-            self.attentions[i].b = data["attnb"][i]
-            self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
-            self.mlps[i].b = [data["mlpb0"][i], data["mlpb1"][i]]
-            self.mlps[i].g = data["mlpg"][i]
-            self.mlps[i].beta = data["mlpbeta"][i]
+        # for i in range(self.layerCount):
+        #     # self.attentions[i].qkv = data["attnqkv"][i]
+        #     # self.attentions[i].proj = data["attnproj"][i]
+        #     self.attentions[i].g = data["attng"][i]
+        #     self.attentions[i].b = data["attnb"][i]
+        #     self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
+        #     self.mlps[i].b = [data["mlpb0"][i], data["mlpb1"][i]]
+        #     self.mlps[i].g = data["mlpg"][i]
+        #     self.mlps[i].beta = data["mlpbeta"][i]
 
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
@@ -216,7 +216,7 @@ class LLM(LLMBase):
                     if k[1] == "v":
                         self.embedding.v[k[2:]] = v
                 if k[0] == "a":
-                    split = np.split(v, self.layerCount, axis=-1)
+                    split = np.split(v, self.layerCount, dim=-1)
                     if k[1] == "m":
                         for i in range(self.layerCount):
                             self.attentions[i].m[k[2:]] = split[i]
@@ -224,7 +224,7 @@ class LLM(LLMBase):
                         for i in range(self.layerCount):
                             self.attentions[i].v[k[2:]] = split[i]
                 if k[0] == "m":
-                    split = np.split(v, self.layerCount, axis=-1)
+                    split = np.split(v, self.layerCount, dim=-1)
                     if k[1] == "m":
                         for i in range(self.layerCount):
                             self.mlps[i].m[k[2:]] = split[i]
@@ -250,15 +250,15 @@ class LLM(LLMBase):
     def feedForward(self, input: list[int]):
         # start = time.time()
         # output tokens included, for training
-        self.tokens = np.array(input[: self.contextSize + 1])
+        self.tokens = np.IntTensor(input[: self.contextSize + 1])
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(self.tokens.size, self.contextSize)
+        self.inputLength = min(self.tokens.shape[0], self.contextSize)
         # only the ones we input into the llm
-        self.inputTokens = np.pad(
+        self.inputTokens = np.nn.functional.pad(
             self.tokens[: self.contextSize],
             (0, max(0, self.contextSize - len(self.tokens))),
-        )
+        ).int()
         # print(self.inputTokens, self.tokens.size, self.inputLength)
         # print("tok", time.time() - start)
 
@@ -312,6 +312,14 @@ class LLM(LLMBase):
         #     0,
         # )
         # start = time.time()
+
+        sums = (error * probabilities).sum(-1).reshape((-1, 1))
+        error = probabilities * (error - sums)
+
+        pytorchGrad = np.autograd.grad(
+            probabilities, self.embedding.words, error, retain_graph=True
+        )[0]
+
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
         # print(time.time() - start)
@@ -342,6 +350,7 @@ class LLM(LLMBase):
         errSums = error.sum(-1).reshape((-1, 1))
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
+        print(pytorchGrad - self.embedding.wordsError)
 
     def getLoss(self):
         probabilities = softmax(self.a)
@@ -349,13 +358,11 @@ class LLM(LLMBase):
 
         # count = 0
         for i in range(self.inputLength):
-            self.loss[i] = -np.log(
-                probabilities[i][self.tokens[i + 1]] + 1e-20
-            )
+            self.loss[i] = -np.log(probabilities[i][self.tokens[i + 1]] + 1e-20)
             # print(np.std(self.a[i]))
             # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
             # print(decode([int(np.argmax(probabilities[i]))], self.vocab), end="")
-                # count += 1
+            # count += 1
             # print(i, probabilities[i][self.tokens[i + 1]])
         # print(count)
         # print(np.mean(-np.sum(probabilities[i] * np.log(probabilities[i] + 1e-20), axis=-1)))
@@ -428,7 +435,7 @@ class LLM(LLMBase):
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[index], T=T)
-        i = int(np.random.choice(self.vocabSize, size=1, p=probabilities)[0])
+        i = probabilities.multinomial(num_samples=1, replacement=False)[0]
         # n = random.random()
         # i = 0
         # while n > 0:
@@ -538,7 +545,7 @@ if __name__ == "__main__":
                         # "sm",
                         # utils.smTime,
                     )
-                    llm.avgLoss += llm.loss.mean()
+                    llm.avgLoss += int(llm.loss.mean())
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()

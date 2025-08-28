@@ -1,6 +1,6 @@
 import time
 
-import numpy as np
+import torch as np
 
 try:
     import cupy
@@ -10,7 +10,8 @@ try:
 except Exception:
     pass
 
-import numpy.typing as npt
+import torch.types as npt
+
 
 from attentionHead import AttentionHead
 from llmlayer import Layer
@@ -23,7 +24,7 @@ class Attention(Layer):
         contextSize: int,
         embedDim: int,
         headCount: int,
-        mask: npt.NDArray,
+        mask: npt.Tensor,
         # pool,
     ) -> None:
         self.contextSize = contextSize
@@ -34,26 +35,26 @@ class Attention(Layer):
             for _ in range(headCount)
         ]
 
-        self.qkv = np.random.normal(0, 0.02, (embedDim, embedDim * 3))
-        self.proj = np.random.normal(0, 0.02, (embedDim, embedDim))
+        self.qkv = np.normal(0, 0.02, (embedDim, embedDim * 3), requires_grad=True)
+        self.proj = np.normal(0, 0.02, (embedDim, embedDim), requires_grad=True)
 
-        self.g: npt.NDArray = np.ones((contextSize, embedDim))
-        self.b: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.g = np.ones((contextSize, embedDim), requires_grad=True)
+        self.b = np.zeros((contextSize, embedDim), requires_grad=True)
 
         self.qkvError = np.zeros((embedDim, embedDim * 3))
         self.projError = np.zeros((embedDim, embedDim))
 
-        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.bError: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.gError = np.zeros((contextSize, embedDim))
+        self.bError = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
         # self.pool = pool
         super().__init__()
 
-    def feedForward(self, lastLayer: npt.NDArray):
+    def feedForward(self, lastLayer):
         self.input = lastLayer
         q, k, v = [
-            np.split(x, self.headCount, axis=-1)
-            for x in np.split(lastLayer @ self.qkv, 3, axis=-1)
+            np.split(x, self.embedDim // self.headCount, dim=-1)
+            for x in np.split(lastLayer @ self.qkv, self.embedDim, dim=-1)
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
@@ -76,7 +77,7 @@ class Attention(Layer):
             self.combined @ self.proj, self.g, self.b
         )
 
-    def backProp(self, error: npt.NDArray):
+    def backProp(self, error):
         self.bError += error
         self.gError += error * self.z
         # derivative of layer norm
@@ -90,7 +91,9 @@ class Attention(Layer):
 
         self.projError += self.combined.T @ error
 
-        splitError = np.split(error @ self.proj.T, self.headCount, axis=-1)
+        splitError = np.split(
+            error @ self.proj.T, self.embedDim // self.headCount, dim=-1
+        )
         # print(splitError[0].shape)
         qkvErrors = [[], [], []]
         for i in range(len(self.heads)):
@@ -127,16 +130,14 @@ class Attention(Layer):
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         # self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
         # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
-        self.proj = self.adamW(
-            "proj", self.proj, self.projError, learningRate, t, mult
-        )
+        self.proj = self.adamW("proj", self.proj, self.projError, learningRate, t, mult)
         self.qkv = self.adamW("qkv", self.qkv, self.qkvError, learningRate, t, mult)
- 
+
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
 
-        self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.bError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.gError = np.zeros((self.contextSize, self.embedDim))
+        self.bError = np.zeros((self.contextSize, self.embedDim))
         # self.error = np.zeros((self.contextSize, self.embedDim))
 
         for head in self.heads:

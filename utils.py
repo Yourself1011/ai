@@ -1,5 +1,6 @@
+import math
 import time
-import numpy as np
+import torch as np
 
 try:
     import cupy
@@ -8,7 +9,7 @@ try:
         np = cupy
 except Exception:
     pass
-import numpy.typing as npt
+import torch.types as npt
 
 # smTime = 0
 
@@ -26,7 +27,7 @@ def sigmoidPrime(x):
     return sigmoid(x) * (1 - sigmoid(x))
 
 
-geluCoefficient = np.sqrt(2 / np.pi)
+geluCoefficient = math.sqrt(2 / math.pi)
 
 
 def gelu(x):
@@ -35,11 +36,11 @@ def gelu(x):
     return 0.5 * x * (1 + tanh), tanh, inside
 
 
-def layerNorm(x: npt.NDArray, g: npt.NDArray, b: npt.NDArray):
+def layerNorm(x, g: npt.Tensor, b: npt.Tensor):
     # global smTime
     # start = time.time()
-    mean = x.mean(axis=-1, keepdims=True)
-    var = x.var(axis=-1, keepdims=True)
+    mean = x.mean(dim=-1, keepdims=True)
+    var = x.var(dim=-1, keepdims=True, unbiased=False)
 
     z = (x - mean) / np.sqrt(var + 1e-5)
     result = z * g + b
@@ -54,8 +55,8 @@ def softmax(x, T: float = 1):
     # start = time.time()
     adj = x / T if T != 1 else x
     exp = np.e ** (
-        adj - adj.max(-1, keepdims=True)
+        adj - adj.max(dim=-1, keepdims=True)[0]
     )  # we subtract the highest number, to keep values from getting too big
-    res = exp / exp.sum(-1, keepdims=True)
+    res = exp / exp.sum(dim=-1, keepdims=True)
     # smTime += time.time() - start
     return res

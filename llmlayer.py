@@ -1,4 +1,4 @@
-import numpy as np
+import torch as np
 
 try:
     import cupy
@@ -7,7 +7,7 @@ try:
         np = cupy
 except Exception:
     pass
-import numpy.typing as npt
+import torch.types as npt
 
 
 class LLMBase:
@@ -18,8 +18,8 @@ class LLMBase:
     def adamW(
         self,
         name: str,
-        value: npt.NDArray,
-        change: npt.NDArray,
+        value: npt.Tensor,
+        change: npt.Tensor,
         lr: float,
         t: int,
         mult: float,
@@ -33,7 +33,7 @@ class LLMBase:
             self.v[name] = np.zeros(value.shape)
 
         # if mult != 1:
-            # change *= mult
+        # change *= mult
 
         self.m[name] = self.m[name] * beta1 + change * (1 - beta1)
         self.v[name] = self.v[name] * beta2 + change**2 * (1 - beta2)
@@ -50,10 +50,10 @@ class Layer(LLMBase):
     def __init__(self):
         super().__init__()
 
-    def feedForward(self, lastLayer: npt.NDArray):
+    def feedForward(self, lastLayer: npt.Tensor):
         pass
 
-    def backProp(self, error: npt.NDArray):
+    def backProp(self, error: npt.Tensor):
         pass
 
     def normalizeError(self, batchSize: int):

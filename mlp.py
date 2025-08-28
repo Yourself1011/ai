@@ -1,4 +1,4 @@
-import numpy as np
+import torch as np
 
 from llmlayer import Layer
 
@@ -11,7 +11,7 @@ except Exception:
     pass
 import time
 
-import numpy.typing as npt
+import torch.types as npt
 
 from utils import layerNorm, sigmoid
 
@@ -24,31 +24,31 @@ class Mlp(Layer):
     ) -> None:
         self.contextSize = contextSize
         self.embedDim = embedDim
-        self.w: list[npt.NDArray] = [
-            np.random.normal(0, 0.02, (embedDim, 4 * embedDim)),
-            np.random.normal(0, 0.02, (4 * embedDim, embedDim)),
+        self.w: list[npt.Tensor] = [
+            np.normal(0, 0.02, (embedDim, 4 * embedDim), requires_grad=True),
+            np.normal(0, 0.02, (4 * embedDim, embedDim), requires_grad=True),
         ]
-        self.b: list[npt.NDArray] = [
-            np.zeros(4 * embedDim),
-            np.zeros(embedDim),
+        self.b: list[npt.Tensor] = [
+            np.zeros(4 * embedDim, requires_grad=True),
+            np.zeros(embedDim, requires_grad=True),
         ]
-        self.g: npt.NDArray = np.ones((contextSize, embedDim))
-        self.beta: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.g: npt.Tensor = np.ones((contextSize, embedDim), requires_grad=True)
+        self.beta: npt.Tensor = np.zeros((contextSize, embedDim), requires_grad=True)
 
-        self.wError: list[npt.NDArray] = [
+        self.wError: list[npt.Tensor] = [
             np.zeros((embedDim, 4 * embedDim)),
             np.zeros((4 * embedDim, embedDim)),
         ]
-        self.bError: list[npt.NDArray] = [
+        self.bError: list[npt.Tensor] = [
             np.zeros(4 * embedDim),
             np.zeros(embedDim),
         ]
-        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.betaError: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.gError: npt.Tensor = np.zeros((contextSize, embedDim))
+        self.betaError: npt.Tensor = np.zeros((contextSize, embedDim))
         self.error = np.zeros((contextSize, embedDim))
         super().__init__()
 
-    def feedForward(self, lastLayer: npt.NDArray):
+    def feedForward(self, lastLayer: npt.Tensor):
         self.input = lastLayer
         # start = time.time()
         self.layer1 = lastLayer @ self.w[0] + self.b[0]
@@ -61,7 +61,7 @@ class Mlp(Layer):
         self.a, self.z, self.mean, self.var = layerNorm(self.layer2, self.g, self.beta)
         # print(time.time() - start)
 
-    def backProp(self, error: npt.NDArray):
+    def backProp(self, error: npt.Tensor):
         self.betaError += error
         self.gError += error * self.z
 
@@ -70,8 +70,8 @@ class Mlp(Layer):
         n = error.shape[-1]
         stdev = np.sqrt(self.var + 1e-5)
         norm = error * self.z
-        sums = norm.sum(-1, keepdims=True)
-        errSums = error.sum(-1, keepdims=True)
+        sums = norm.sum(-1, keepdim=True)
+        errSums = error.sum(-1, keepdim=True)
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
 
         # print(error.shape)
@@ -79,8 +79,12 @@ class Mlp(Layer):
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
         self.wError[1] += self.gelu.T @ error
-        error = self.sigmoid * (1 + self.multiplied * (1 - self.sigmoid)) * (error @ self.w[1].T)
-        
+        error = (
+            self.sigmoid
+            * (1 + self.multiplied * (1 - self.sigmoid))
+            * (error @ self.w[1].T)
+        )
+
         # print(error)
         self.bError[0] += error.sum(0)
         # print(self.input.shape, error.shape)
@@ -101,11 +105,11 @@ class Mlp(Layer):
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         # self.beta = self.adamW(
-            # "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
+        # "beta", self.beta, self.betaError, learningRate, t, mult, decay=0
         # )
         # self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.b[1] = self.adamW(
-           "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
+            "b1", self.b[1], self.bError[1], learningRate, t, mult, decay=0
         )
         self.w[1] = self.adamW("w1", self.w[1], self.wError[1], learningRate, t, mult)
         self.b[0] = self.adamW(
@@ -113,14 +117,14 @@ class Mlp(Layer):
         )
         self.w[0] = self.adamW("w0", self.w[0], self.wError[0], learningRate, t, mult)
 
-        self.wError: list[npt.NDArray] = [
+        self.wError: list[npt.Tensor] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),
             np.zeros((4 * self.embedDim, self.embedDim)),
         ]
-        self.bError: list[npt.NDArray] = [
+        self.bError: list[npt.Tensor] = [
             np.zeros(4 * self.embedDim),
             np.zeros(self.embedDim),
         ]
-        self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.betaError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.gError: npt.Tensor = np.zeros((self.contextSize, self.embedDim))
+        self.betaError: npt.Tensor = np.zeros((self.contextSize, self.embedDim))
         # self.error = np.zeros((self.contextSize, self.embedDim))
