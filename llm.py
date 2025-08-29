@@ -398,24 +398,22 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             magSq += np.sum((self.attentions[i].qkvError) ** 2)
             magSq += np.sum((self.attentions[i].projError) ** 2)
-            # magSq += np.sum((self.attentions[i].gError) ** 2)
-            # magSq += np.sum((self.attentions[i].bError) ** 2)
+            magSq += np.sum((self.attentions[i].gError) ** 2)
+            magSq += np.sum((self.attentions[i].bError) ** 2)
             magSq += np.sum((self.mlps[i].wError[0]) ** 2)
             magSq += np.sum((self.mlps[i].wError[1]) ** 2)
             magSq += np.sum((self.mlps[i].bError[0]) ** 2)
             magSq += np.sum((self.mlps[i].bError[1]) ** 2)
-            # magSq += np.sum((self.mlps[i].gError) ** 2)
-            # magSq += np.sum((self.mlps[i].betaError) ** 2)
-        # magSq += np.sum((self.gError) ** 2)
-        # magSq += np.sum((self.bError) ** 2)
+            magSq += np.sum((self.mlps[i].gError) ** 2)
+            magSq += np.sum((self.mlps[i].betaError) ** 2)
+        magSq += np.sum((self.gError) ** 2)
+        magSq += np.sum((self.bError) ** 2)
 
         print("mag:", math.sqrt(magSq), end=" ")
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
         else:
             mult = 1
-
-        mult = 1
 
         self.embedding.gradientDescent(learningRate, t, mult)
         for i in range(self.layerCount):

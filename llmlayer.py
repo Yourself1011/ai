@@ -32,8 +32,8 @@ class LLMBase:
             self.m[name] = np.zeros(value.shape)
             self.v[name] = np.zeros(value.shape)
 
-        # if mult != 1:
-            # change *= mult
+        if mult != 1:
+            change *= mult
 
         self.m[name] = self.m[name] * beta1 + change * (1 - beta1)
         self.v[name] = self.v[name] * beta2 + change**2 * (1 - beta2)
