@@ -42,16 +42,16 @@ class Embedding(Layer):
         counts = np.bincount(self.input, minlength=self.vocabSize)
         for i in range(self.contextSize):
             self.wordsError[self.input[i]] += error[i] / counts[self.input[i]]
-        self.positionsError += error / self.contextSize
+        self.positionsError += error
 
     def decode(self, lastLayer):
         self.decodeInput = lastLayer
-        self.decoded = lastLayer @ self.words.T
+        self.decoded = lastLayer @ self.decodeWords.T
 
     def decodeBackProp(self, error):
-        self.wordsError += (error.T @ self.decodeInput) / self.contextSize
+        self.decodeWordsError += error.T @ self.decodeInput
         # print(error.shape, self.words.shape)
-        self.error = error @ self.words
+        self.error = error @ self.decodeWords
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize
@@ -66,14 +66,14 @@ class Embedding(Layer):
             "positions", self.positions, self.positionsError, learningRate, t, mult
         )
 
-        # self.decodeWords = self.adamW(
-        #     "decodeWords",
-        #     self.decodeWords,
-        #     self.decodeWordsError,
-        #     learningRate,
-        #     t,
-        #     mult,
-        # )
+        self.decodeWords = self.adamW(
+            "decodeWords",
+            self.decodeWords,
+            self.decodeWordsError,
+            learningRate,
+            t,
+            mult,
+        )
 
         # self.error = np.zeros((self.contextSize, self.embedDim))
         self.wordsError = np.zeros((self.vocabSize, self.embedDim))

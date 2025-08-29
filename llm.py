@@ -52,7 +52,7 @@ class LLM(LLMBase):
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
         self.g = np.ones((contextSize, embedDim), requires_grad=True)
         self.b = np.zeros((contextSize, embedDim), requires_grad=True)
-        self.gError = np.ones((contextSize, embedDim))
+        self.gError = np.zeros((contextSize, embedDim))
         self.bError = np.zeros((contextSize, embedDim))
 
         self.t = 1
@@ -313,12 +313,12 @@ class LLM(LLMBase):
         # )
         # start = time.time()
 
+        pytorchGrad = np.autograd.grad(
+            probabilities, self.embedding.words, error, retain_graph=True
+        )[0]
+
         sums = (error * probabilities).sum(-1).reshape((-1, 1))
         error = probabilities * (error - sums)
-
-        pytorchGrad = np.autograd.grad(
-            probabilities, self.mlps[1].w[0], error, retain_graph=True
-        )[0]
 
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
@@ -350,7 +350,9 @@ class LLM(LLMBase):
         errSums = error.sum(-1).reshape((-1, 1))
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
-        print(np.max(np.abs(pytorchGrad - self.mlps[1].wError[0])).detach().numpy())
+
+        diff = np.abs(pytorchGrad - self.embedding.wordsError)
+        print(np.max(diff).detach().numpy(), np.mean(diff).detach().numpy())
 
     def getLoss(self):
         probabilities = softmax(self.a)
@@ -390,7 +392,7 @@ class LLM(LLMBase):
             )
         else:
             learningRate = minLearningRate
-        print("    lr:", learningRate, end=" ")
+        # print("    lr:", learningRate, end=" ")
 
         self.embedding.normalizeError(batchSize)
         for i in range(self.layerCount):
@@ -415,7 +417,7 @@ class LLM(LLMBase):
         # magSq += np.sum((self.gError) ** 2)
         # magSq += np.sum((self.bError) ** 2)
 
-        print("mag:", math.sqrt(magSq), end=" ")
+        # print("mag:", math.sqrt(magSq), end=" ")
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
         else:
@@ -430,7 +432,7 @@ class LLM(LLMBase):
         self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
         self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
-        self.gError = np.ones((self.contextSize, self.embedDim))
+        self.gError = np.zeros((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
 
     def getToken(self, index: int, T: float):
@@ -506,7 +508,7 @@ if __name__ == "__main__":
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 2
+                n = 1
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
@@ -531,27 +533,27 @@ if __name__ == "__main__":
                     # start = time.time()
                     llm.backProp()
                     # print("bp", time.time() - start)
-                    print(
-                        # new,
-                        "loss",
-                        llm.loss.mean(),
-                        f"{time.time() - totalStart}s",
-                        "step",
-                        step,
-                        "batch",
-                        batch,
-                        "size",
-                        llm.tokens.size,
-                        # "sm",
-                        # utils.smTime,
-                    )
+                    # print(
+                    #     # new,
+                    #     "loss",
+                    #     llm.loss.mean(),
+                    #     f"{time.time() - totalStart}s",
+                    #     "step",
+                    #     step,
+                    #     "batch",
+                    #     batch,
+                    #     "size",
+                    #     llm.tokens.size,
+                    #     # "sm",
+                    #     # utils.smTime,
+                    # )
                     llm.avgLoss += int(llm.loss.mean())
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
                 # llm.gradientDescent(6e-4, n, step, clip=1)
                 llm.gradientDescent(6e-3, n, step, clip=1)
-                print("gd", time.time() - start)
+                # print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()
                     lastSave = time.time()
