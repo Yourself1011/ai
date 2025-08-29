@@ -46,12 +46,12 @@ class Embedding(Layer):
 
     def decode(self, lastLayer):
         self.decodeInput = lastLayer
-        self.decoded = lastLayer @ self.decodeWords.T
+        self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error):
-        self.decodeWordsError += error.T @ self.decodeInput
+        self.wordsError += error.T @ self.decodeInput
         # print(error.shape, self.words.shape)
-        self.error = error @ self.decodeWords
+        self.error = error @ self.words
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize
