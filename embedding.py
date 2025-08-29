@@ -38,14 +38,14 @@ class Embedding(Layer):
         counts = np.bincount(self.input, minlength=self.vocabSize)
         for i in range(self.contextSize):
             self.wordsError[self.input[i]] += error[i] / counts[self.input[i]]
-        self.positionsError += error / self.contextSize
+        self.positionsError += error
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
         self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        self.wordsError += (error.T @ self.decodeInput) / self.contextSize
+        self.wordsError += error.T @ self.decodeInput
         # print(error.shape, self.words.shape)
         self.error = error @ self.words
 
@@ -63,7 +63,7 @@ class Embedding(Layer):
         )
 
         # self.decodeWords = self.adamW(
-            # "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult
+        # "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult
         # )
 
         # self.error = np.zeros((self.contextSize, self.embedDim))

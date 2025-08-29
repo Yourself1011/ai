@@ -52,7 +52,7 @@ class LLM(LLMBase):
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
         self.g = np.ones((contextSize, embedDim))
         self.b = np.zeros((contextSize, embedDim))
-        self.gError = np.ones((contextSize, embedDim))
+        self.gError = np.zeros((contextSize, embedDim))
         self.bError = np.zeros((contextSize, embedDim))
 
         self.t = 1
@@ -424,7 +424,7 @@ class LLM(LLMBase):
         self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
         self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
-        self.gError = np.ones((self.contextSize, self.embedDim))
+        self.gError = np.zeros((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
 
     def getToken(self, index: int, T: float):
