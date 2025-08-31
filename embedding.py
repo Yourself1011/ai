@@ -39,9 +39,26 @@ class Embedding(Layer):
         # print(self.words.max(0))
 
     def backProp(self, error):
-        counts = np.bincount(self.input, minlength=self.vocabSize)
+        # print(error.shape, self.error.shape)
+        # we must use product rule, since words is used twice
+        # (w + ...) @ w ->
+        # d(w + ...)/dw @ w + (w + ...) @ dw/dw
+        # dy/dw / dy/d(w + ...) @ w + (w + ...) @ 1
+        # adjError = error / self.error  # use this below
+        # encodeError = np.zeros(self.vocabSize, self.embedDim)
+        # for i in range(self.contextSize):
+        #     encodeError[self.input[i]] += adjError[i]
+        # # @ self.words + self.input
+        # print(
+        #     adjError.shape,
+        #     encodeError.shape,
+        #     self.words.shape,
+        #     self.decodeInput.sum(0).shape,
+        #     (encodeError * self.words).shape,
+        # )
+        # self.wordsError += encodeError * self.words + self.decodeInput.sum(0)
         for i in range(self.contextSize):
-            self.wordsError[self.input[i]] += error[i] / counts[self.input[i]]
+            self.wordsError[self.input[i]] += error[i]
         self.positionsError += error
 
     def decode(self, lastLayer):
@@ -50,6 +67,7 @@ class Embedding(Layer):
 
     def decodeBackProp(self, error):
         self.wordsError += error.T @ self.decodeInput
+        # self.decodeWordsError = error.T @ self.decodeInput
         # print(error.shape, self.words.shape)
         self.error = error @ self.words
 
