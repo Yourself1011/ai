@@ -253,7 +253,7 @@ class LLM(LLMBase):
         self.tokens = np.array(input[: self.contextSize + 1])
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(self.tokens.size, self.contextSize)
+        self.inputLength = min(self.tokens.shape[0], self.contextSize)
         # only the ones we input into the llm
         self.inputTokens = np.pad(
             self.tokens[: self.contextSize],
