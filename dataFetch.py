@@ -13,11 +13,11 @@ i = 0
 
 def getData(amt: int, merges):
     global i, tokens, process, queue, buffer
-    tokens = encode(getBee(), merges) + [256]
-    i += 1
-    if i == 2:
-        i = 0
-    return tokens[i * amt : (i + 1) * amt + 1]
+    # tokens = encode(getBee(), merges) + [256]
+    # i += 1
+    # if i == 2:
+    #     i = 0
+    # return tokens[i * amt : (i + 1) * amt + 1]
     # print(i, len(tokens))
     if len(tokens) == 0:
         tokens = addToBuffer(merges, amt)
@@ -50,7 +50,7 @@ def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = getBee()
+        filtered = pj()
         # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new

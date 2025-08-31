@@ -440,8 +440,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        # llm = LLM(50257, 768, 1024, 12, 12)
-        llm = LLM(5257, 384, 256, 6, 6)
+        llm = LLM(50257, 768, 1024, 12, 12)
+        # llm = LLM(5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -497,8 +497,8 @@ if __name__ == "__main__":
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                # n = 480
-                n = 2
+                n = 480
+                # n = 2
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
@@ -541,8 +541,8 @@ if __name__ == "__main__":
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
-                # llm.gradientDescent(6e-4, n, step, clip=1)
-                llm.gradientDescent(6e-3, n, step, clip=1)
+                llm.gradientDescent(6e-4, n, step, clip=1)
+                # llm.gradientDescent(6e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
                     llm.save()
