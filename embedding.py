@@ -35,9 +35,8 @@ class Embedding(Layer):
         # print(self.words.max(0))
 
     def backProp(self, error: npt.NDArray):
-        counts = np.bincount(self.input, minlength=self.vocabSize)
         for i in range(self.contextSize):
-            self.wordsError[self.input[i]] += error[i] / counts[self.input[i]]
+            self.wordsError[self.input[i]] += error[i]
         self.positionsError += error
 
     def decode(self, lastLayer: npt.NDArray):
