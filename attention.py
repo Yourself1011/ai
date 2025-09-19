@@ -34,8 +34,8 @@ class Attention(Layer):
             for _ in range(headCount)
         ]
 
-        self.qkv = np.random.normal(0, 0.02, (embedDim, embedDim * 3))
-        self.proj = np.random.normal(0, 0.02, (embedDim, embedDim))
+        self.qkv = np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, embedDim * 3))
+        self.proj = np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, embedDim))
 
         self.g: npt.NDArray = np.ones((contextSize, embedDim))
         self.b: npt.NDArray = np.zeros((contextSize, embedDim))

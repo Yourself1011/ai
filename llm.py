@@ -253,7 +253,7 @@ class LLM(LLMBase):
         self.tokens = np.array(input[: self.contextSize + 1])
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(self.tokens.shape[0], self.contextSize)
+        self.inputLength = self.tokens.shape[0]
         # only the ones we input into the llm
         self.inputTokens = np.pad(
             self.tokens[: self.contextSize],
@@ -302,7 +302,7 @@ class LLM(LLMBase):
         # = s(xi) + 1 - 1
         # = s(xi)
         # print(min(self.tokens.size, self.contextSize + 1))
-        for i in range(self.inputLength):
+        for i in range(self.inputLength - 1):
             error[i] = probabilities[i]
             error[i][self.tokens[i + 1]] -= 1
         # print(error.sum())
@@ -351,7 +351,7 @@ class LLM(LLMBase):
         self.loss = np.zeros((self.contextSize))
 
         # count = 0
-        for i in range(self.inputLength):
+        for i in range(self.inputLength - 1):
             self.loss[i] = -np.log(probabilities[i][self.tokens[i + 1]] + 1e-20)
             # print(np.std(self.a[i]))
             # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
@@ -474,7 +474,7 @@ if __name__ == "__main__":
                 #     llm.save()
 
                 llm.feedForward(encode(message, llm.merges))
-                token = llm.getToken(llm.inputLength - 1, temperature)
+                token = llm.getToken(llm.inputLength - 2, temperature)
                 new = decode(
                     # list(llm.inputTokens) +
                     [token],
