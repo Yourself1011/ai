@@ -40,23 +40,6 @@ class Embedding(Layer):
 
     def backProp(self, error):
         # print(error.shape, self.error.shape)
-        # we must use product rule, since words is used twice
-        # (w + ...) @ w ->
-        # d(w + ...)/dw @ w + (w + ...) @ dw/dw
-        # dy/dw / dy/d(w + ...) @ w + (w + ...) @ 1
-        # adjError = error / self.error  # use this below
-        # encodeError = np.zeros(self.vocabSize, self.embedDim)
-        # for i in range(self.contextSize):
-        #     encodeError[self.input[i]] += adjError[i]
-        # # @ self.words + self.input
-        # print(
-        #     adjError.shape,
-        #     encodeError.shape,
-        #     self.words.shape,
-        #     self.decodeInput.sum(0).shape,
-        #     (encodeError * self.words).shape,
-        # )
-        # self.wordsError += encodeError * self.words + self.decodeInput.sum(0)
         for i in range(self.contextSize):
             self.wordsError[self.input[i]] += error[i]
         self.positionsError += error

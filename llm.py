@@ -267,11 +267,9 @@ class LLM(LLMBase):
         self.embedding.feedForward(self.inputTokens)
         # print("emb", time.time() - start)
         # start = time.time()
-        lastLayer, self.z, self.mean, self.var = layerNorm(
-            self.embedding.a, self.g, self.b
-        )
         # print("nor", time.time() - start)
         # print(self.embedding.a)
+        lastLayer = self.embedding.a
 
         # attnTime = 0
         # mlpTime = 0
@@ -285,6 +283,8 @@ class LLM(LLMBase):
             lastLayer = self.mlps[i].a
         #     mlpTime += time.time() - start
         # print(attnTime, mlpTime)
+
+        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
 
         # print(lastLayer)
         # start = time.time()
@@ -324,6 +324,17 @@ class LLM(LLMBase):
         error = self.embedding.error
         # print(time.time() - start)
 
+        self.bError += error
+        self.gError += error * self.z
+
+        error *= self.g
+        n = error.shape[-1]
+        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        norm = error * self.z
+        sums = norm.sum(-1).reshape((-1, 1))
+        errSums = error.sum(-1).reshape((-1, 1))
+        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
+
         # mlpTime = 0
         # attnTime = 0
         for i in range(self.layerCount):
@@ -339,16 +350,6 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
-        self.bError += error
-        self.gError += error * self.z
-
-        error *= self.g
-        n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
-        norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
-        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
 
         diff = np.abs(pytorchGrad - self.embedding.wordsError)

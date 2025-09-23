@@ -52,6 +52,8 @@ class Attention(Layer):
 
     def feedForward(self, lastLayer):
         self.input = lastLayer
+        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
+
         q, k, v = [
             np.split(x, self.embedDim // self.headCount, dim=-1)
             for x in np.split(lastLayer @ self.qkv, self.embedDim, dim=-1)
@@ -73,22 +75,10 @@ class Attention(Layer):
         # attentionOutputs = [x.get() for x in res]
 
         self.combined = np.hstack(attentionOutputs)
-        self.a, self.z, self.mean, self.var = layerNorm(
-            self.combined @ self.proj, self.g, self.b
-        )
+        self.a = self.combined @ self.proj + self.input
 
     def backProp(self, error):
-        self.bError += error
-        self.gError += error * self.z
-        # derivative of layer norm
-        error *= self.g
-        n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
-        norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
-        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
-
+        initError = error
         self.projError += self.combined.T @ error
 
         splitError = np.split(
@@ -117,7 +107,17 @@ class Attention(Layer):
         error = np.hstack([queryError, keyError, valueError])
         self.qkvError += self.input.T @ error
         # print(error.shape, self.qkv.shape)
-        self.error = error @ self.qkv.T
+        error = error @ self.qkv.T
+        self.bError += error
+        self.gError += error * self.z
+        # derivative of layer norm
+        error *= self.g
+        n = error.shape[-1]
+        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        norm = error * self.z
+        sums = norm.sum(-1).reshape((-1, 1))
+        errSums = error.sum(-1).reshape((-1, 1))
+        self.error = 1 / (n * stdev) * (n * error - errSums - self.z * sums) + initError
 
     def normalizeError(self, batchSize: int):
         self.qkvError /= batchSize

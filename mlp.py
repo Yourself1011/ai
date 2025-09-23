@@ -50,6 +50,7 @@ class Mlp(Layer):
 
     def feedForward(self, lastLayer: npt.Tensor):
         self.input = lastLayer
+        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.beta)
         # start = time.time()
         self.layer1 = lastLayer @ self.w[0] + self.b[0]
         # self.gelu, self.tanh, self.inside = gelu(self.layer1)
@@ -58,22 +59,11 @@ class Mlp(Layer):
         self.sigmoid = sigmoid(self.multiplied)
         self.gelu = self.layer1 * self.sigmoid
         self.layer2 = self.gelu @ self.w[1] + self.b[1]
-        self.a, self.z, self.mean, self.var = layerNorm(self.layer2, self.g, self.beta)
+        self.a = self.layer2 + self.input
         # print(time.time() - start)
 
     def backProp(self, error: npt.Tensor):
-        self.betaError += error
-        self.gError += error * self.z
-
-        # derivative of layer norm
-        error *= self.g
-        n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5)
-        norm = error * self.z
-        sums = norm.sum(-1, keepdim=True)
-        errSums = error.sum(-1, keepdim=True)
-        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
-
+        initError = error
         # print(error.shape)
         self.bError[1] += error.sum(0)
         # print((self.gelu.T @ error).sum())
@@ -90,8 +80,19 @@ class Mlp(Layer):
         # print(self.input.shape, error.shape)
         self.wError[0] += self.input.T @ error
         # print(error.shape, self.w[0].shape)
-        self.error = error @ self.w[0].T
+        error = error @ self.w[0].T
         # self.error += ( self.w[0] @ error.T ).T
+        self.betaError += error
+        self.gError += error * self.z
+
+        # derivative of layer norm
+        error *= self.g
+        n = error.shape[-1]
+        stdev = np.sqrt(self.var + 1e-5)
+        norm = error * self.z
+        sums = norm.sum(-1, keepdim=True)
+        errSums = error.sum(-1, keepdim=True)
+        self.error = 1 / (n * stdev) * (n * error - errSums - self.z * sums) + initError
 
     def normalizeError(self, batchSize: int):
         self.wError[0] /= batchSize
