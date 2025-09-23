@@ -314,7 +314,7 @@ class LLM(LLMBase):
         # start = time.time()
 
         pytorchGrad = np.autograd.grad(
-            probabilities, self.embedding.words, error, retain_graph=True
+            probabilities, self.attentions[5].proj, error, retain_graph=True
         )[0]
 
         sums = (error * probabilities).sum(-1).reshape((-1, 1))
@@ -352,7 +352,7 @@ class LLM(LLMBase):
         # print(error[1][self.tokens[1]])
         self.embedding.backProp(error)
 
-        diff = np.abs(pytorchGrad - self.embedding.wordsError)
+        diff = np.abs(pytorchGrad - self.attentions[5].projError)
         print(np.max(diff).detach().numpy(), np.mean(diff).detach().numpy())
 
     def getLoss(self):

@@ -52,7 +52,8 @@ class Attention(Layer):
 
     def feedForward(self, lastLayer):
         self.input = lastLayer
-        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
+        self.lnOut, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
+        lastLayer = self.lnOut
 
         q, k, v = [
             np.split(x, self.embedDim // self.headCount, dim=-1)
@@ -105,7 +106,7 @@ class Attention(Layer):
         keyError = np.hstack(qkvErrors[1])
         valueError = np.hstack(qkvErrors[2])
         error = np.hstack([queryError, keyError, valueError])
-        self.qkvError += self.input.T @ error
+        self.qkvError += self.lnOut.T @ error
         # print(error.shape, self.qkv.shape)
         error = error @ self.qkv.T
         self.bError += error

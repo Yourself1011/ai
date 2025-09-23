@@ -50,7 +50,10 @@ class Mlp(Layer):
 
     def feedForward(self, lastLayer: npt.Tensor):
         self.input = lastLayer
-        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.beta)
+        self.lnOut, self.z, self.mean, self.var = layerNorm(
+            lastLayer, self.g, self.beta
+        )
+        lastLayer = self.lnOut
         # start = time.time()
         self.layer1 = lastLayer @ self.w[0] + self.b[0]
         # self.gelu, self.tanh, self.inside = gelu(self.layer1)
@@ -78,7 +81,7 @@ class Mlp(Layer):
         # print(error)
         self.bError[0] += error.sum(0)
         # print(self.input.shape, error.shape)
-        self.wError[0] += self.input.T @ error
+        self.wError[0] += self.lnOut.T @ error
         # print(error.shape, self.w[0].shape)
         error = error @ self.w[0].T
         # self.error += ( self.w[0] @ error.T ).T
