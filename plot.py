@@ -8,7 +8,7 @@ with open(sys.argv[1]) as f:
     iteration, loss = zip(*f)
 
 iterations = list(map(int, iteration))
-losses = list(map(lambda x: math.log(float(x)), loss))
+losses = list(map(lambda x: float(x), loss))
 x = range(len(iterations))
 
 fig, ax = plt.subplots()
