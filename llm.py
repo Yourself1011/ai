@@ -372,7 +372,7 @@ class LLM(LLMBase):
     ):
         self.t = t
         warmupSteps = 100
-        totalSteps = 600_000
+        totalSteps = 3000
         # warmupSteps = 20
         # totalSteps = 6000
         minLearningRate = learningRate * 0.1

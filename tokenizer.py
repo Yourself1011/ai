@@ -206,7 +206,7 @@ def load(vocabSize: int):
 
 
 if __name__ == "__main__":
-    (merges, vocab) = load(5257)
+    (merges, vocab) = load(50257)
 
     # print(merges)
     # print(vocab)
