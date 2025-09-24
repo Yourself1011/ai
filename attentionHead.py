@@ -22,7 +22,7 @@ class AttentionHead:
         self.embedDim = embedDim
         self.headCount = headCount
         self.mask = mask
-        self.tfMask = mask == False
+        # self.tfMask = mask == False
         # self.query = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
@@ -71,7 +71,9 @@ class AttentionHead:
 
         error = error @ self.value.T
         sums = (error * self.weights).sum(-1).reshape((-1, 1))
-        error = self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
+        error = (
+            self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
+        )
 
         self.queryError = error @ self.key
         self.keyError = error.T @ self.query

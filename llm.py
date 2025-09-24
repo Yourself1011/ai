@@ -187,8 +187,8 @@ class LLM(LLMBase):
             if k not in ["b", "g", "pos", "words"]
         }
         for i in range(self.layerCount):
-            # self.attentions[i].qkv = data["attnqkv"][i]
-            # self.attentions[i].proj = data["attnproj"][i]
+            self.attentions[i].qkv = data["attnqkv"][i]
+            self.attentions[i].proj = data["attnproj"][i]
             self.attentions[i].g = data["attng"][i]
             self.attentions[i].b = data["attnb"][i]
             self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
@@ -253,7 +253,7 @@ class LLM(LLMBase):
         self.tokens = np.array(input[: self.contextSize + 1])
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = self.tokens.shape[0]
+        self.inputLength = min(self.tokens.shape[0], self.contextSize)
         # only the ones we input into the llm
         self.inputTokens = np.pad(
             self.tokens[: self.contextSize],
@@ -267,9 +267,7 @@ class LLM(LLMBase):
         self.embedding.feedForward(self.inputTokens)
         # print("emb", time.time() - start)
         # start = time.time()
-        lastLayer, self.z, self.mean, self.var = layerNorm(
-            self.embedding.a, self.g, self.b
-        )
+        lastLayer = self.embedding.a
         # print("nor", time.time() - start)
         # print(self.embedding.a)
 
@@ -285,6 +283,8 @@ class LLM(LLMBase):
             lastLayer = self.mlps[i].a
         #     mlpTime += time.time() - start
         # print(attnTime, mlpTime)
+
+        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
 
         # print(lastLayer)
         # start = time.time()
@@ -319,6 +319,17 @@ class LLM(LLMBase):
         error = self.embedding.error
         # print(time.time() - start)
 
+        self.bError += error
+        self.gError += error * self.z
+
+        error *= self.g
+        n = error.shape[-1]
+        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        norm = error * self.z
+        sums = norm.sum(-1).reshape((-1, 1))
+        errSums = error.sum(-1).reshape((-1, 1))
+        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
+
         # mlpTime = 0
         # attnTime = 0
         for i in range(self.layerCount):
@@ -334,16 +345,6 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
-        self.bError += error
-        self.gError += error * self.z
-
-        error *= self.g
-        n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
-        norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
-        error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
         self.embedding.backProp(error)
 
     def getLoss(self):
@@ -474,7 +475,7 @@ if __name__ == "__main__":
                 #     llm.save()
 
                 llm.feedForward(encode(message, llm.merges))
-                token = llm.getToken(llm.inputLength - 2, temperature)
+                token = llm.getToken(llm.inputLength - 1, temperature)
                 new = decode(
                     # list(llm.inputTokens) +
                     [token],
@@ -498,7 +499,7 @@ if __name__ == "__main__":
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 n = 480
-                # n = 2
+                # n = 8
                 for batch in range(n):
                     totalStart = time.time()
                     # utils.smTime = 0
