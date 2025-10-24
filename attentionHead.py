@@ -48,7 +48,7 @@ class AttentionHead:
         self.value = v
         attentionPattern = np.where(
             self.mask,
-            self.query @ self.key.T,
+            self.query @ np.moveaxis(self.key, -1, -2),
             -1e9,
         ) / (np.sqrt(self.embedDim // self.headCount))
         # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
@@ -67,16 +67,16 @@ class AttentionHead:
     def backProp(
         self, error: npt.NDArray
     ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
-        self.valueError = self.weights.T @ error
+        self.valueError = np.swapaxes(self.weights, -1, -2) @ error
 
-        error = error @ self.value.T
-        sums = (error * self.weights).sum(-1).reshape((-1, 1))
+        error = error @ np.swapaxes(self.value, -1, -2)
+        sums = (error * self.weights).sum(-1, keepdims=True)
         error = (
             self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
         )
 
         self.queryError = error @ self.key
-        self.keyError = error.T @ self.query
+        self.keyError = np.swapaxes(error, -1, -2) @ self.query
         return self.queryError, self.keyError, self.valueError
 
     def gradientDescent(self, learningRate: float, batchSize: int):

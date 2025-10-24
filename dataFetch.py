@@ -21,7 +21,7 @@ def getData(amt: int, merges):
     # print(i, len(tokens))
     if len(tokens) == 0:
         tokens = addToBuffer(merges, amt)
-    if i + amt + 1 >= len(tokens):
+    if i + amt >= len(tokens):
         # if len(tokens) == 0 and len(buffer) == 0:
         #     # first time running it
         #     asyncAddToBuffer(queue, merges, amt)
@@ -36,12 +36,12 @@ def getData(amt: int, merges):
         # process.start()
 
         buffer = addToBuffer(merges, amt)
-        chunk = tokens[i:] + buffer[: amt - (len(tokens) % amt) + 1]
+        chunk = tokens[i:] + buffer[: amt - (len(tokens) % amt)]
         tokens = buffer[amt - (len(tokens) % amt) :]
 
         i = 0
     else:
-        chunk = tokens[i : i + amt + 1]
+        chunk = tokens[i : i + amt]
         i += amt
     return chunk
 
@@ -50,7 +50,7 @@ def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = pj()
+        filtered = getBee()
         # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new

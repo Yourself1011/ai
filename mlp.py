@@ -68,25 +68,25 @@ class Mlp(Layer):
     def backProp(self, error: npt.NDArray):
         initError = error
         # print(error.shape)
-        self.bError[1] += error.sum(0)
+        self.bError[1] += error.sum(0).sum(0)
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
-        self.wError[1] += self.gelu.T @ error
+        self.wError[1] += (np.swapaxes(self.gelu, -1, -2) @ error).sum(0)
         error = (
             self.sigmoid
             * (1 + self.multiplied * (1 - self.sigmoid))
-            * (error @ self.w[1].T)
+            * (error @ np.swapaxes(self.w[1], -1, -2))
         )
 
         # print(error)
-        self.bError[0] += error.sum(0)
+        self.bError[0] += error.sum(0).sum(0)
         # print(self.input.shape, error.shape)
-        self.wError[0] += self.lnOut.T @ error
+        self.wError[0] += (np.swapaxes(self.lnOut, -1, -2) @ error).sum(0)
         # print(error.shape, self.w[0].shape)
-        error = error @ self.w[0].T
+        error = error @ np.swapaxes(self.w[0], -1, -2)
         # self.error += ( self.w[0] @ error.T ).T
-        self.betaError += error
-        self.gError += error * self.z
+        self.betaError += error.sum(0)
+        self.gError += (error * self.z).sum(0)
 
         # derivative of layer norm
         error *= self.g

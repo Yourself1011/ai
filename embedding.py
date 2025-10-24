@@ -16,9 +16,15 @@ class Embedding(Layer):
     def __init__(self, vocabSize: int, embedDim: int, contextSize: int):
         self.embedDim = embedDim
         self.vocabSize = vocabSize
-        self.words = np.random.normal(0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim))
-        self.decodeWords = np.random.normal(0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim))
-        self.positions = np.random.normal(0, 1 / np.sqrt(embedDim), size=(contextSize, embedDim))
+        self.words = np.random.normal(
+            0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim)
+        )
+        self.decodeWords = np.random.normal(
+            0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim)
+        )
+        self.positions = np.random.normal(
+            0, 1 / np.sqrt(embedDim), size=(contextSize, embedDim)
+        )
         self.contextSize = contextSize
         self.error = np.zeros((contextSize, embedDim))
         self.wordsError = np.zeros((vocabSize, embedDim))
@@ -26,6 +32,7 @@ class Embedding(Layer):
         self.positionsError = np.zeros((contextSize, embedDim))
         self.a = np.empty((contextSize, embedDim))
         self.decoded = np.empty(vocabSize)
+        self.inputLength = 0
         super().__init__()
 
     def feedForward(self, lastLayer: npt.NDArray):
@@ -35,16 +42,19 @@ class Embedding(Layer):
         # print(self.words.max(0))
 
     def backProp(self, error: npt.NDArray):
-        for i in range(self.contextSize):
-            self.wordsError[self.input[i]] += error[i]
-        self.positionsError += error
+        for j in range(self.input.shape[0] - 1):
+            for i in range(self.contextSize):
+                self.wordsError[self.input[j][i]] += error[j][i]
+        for i in range(self.inputLength):
+            self.wordsError[self.input[-1][i]] += error[-1][i]
+        self.positionsError += error.sum(0)
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
         self.decoded = lastLayer @ self.words.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        self.wordsError += error.T @ self.decodeInput
+        self.wordsError += (np.swapaxes(error, -1, -2) @ self.decodeInput).sum(axis=0)
         # print(error.shape, self.words.shape)
         self.error = error @ self.words
 

@@ -52,16 +52,15 @@ class Attention(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.lnOut, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
-        lastLayer = self.lnOut
 
         q, k, v = [
             np.split(x, self.headCount, axis=-1)
-            for x in np.split(lastLayer @ self.qkv, 3, axis=-1)
+            for x in np.split(self.lnOut @ self.qkv, 3, axis=-1)
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
             # start = time.time()
-            self.heads[i].feedForward(lastLayer, q[i], k[i], v[i])
+            self.heads[i].feedForward(self.lnOut, q[i], k[i], v[i])
             # print(time.time() - start)
             attentionOutputs.append(self.heads[i].a)
         # print(self.qkv.max())
@@ -74,14 +73,16 @@ class Attention(Layer):
         # ]
         # attentionOutputs = [x.get() for x in res]
 
-        self.combined = np.hstack(attentionOutputs)
+        self.combined = np.concatenate(attentionOutputs, axis=-1)
         self.a = self.combined @ self.proj + self.input
 
     def backProp(self, error: npt.NDArray):
         initError = error
-        self.projError += self.combined.T @ error
+        self.projError += (np.swapaxes(self.combined, -1, -2) @ error).sum(0)
 
-        splitError = np.split(error @ self.proj.T, self.headCount, axis=-1)
+        splitError = np.split(
+            error @ np.swapaxes(self.proj, -1, -2), self.headCount, axis=-1
+        )
         # print(splitError[0].shape)
         qkvErrors = [[], [], []]
         for i in range(len(self.heads)):
@@ -99,23 +100,23 @@ class Attention(Layer):
             #     np.zeros((self.contextSize, self.embedDim // self.headCount))
             # )
 
-        queryError = np.hstack(qkvErrors[0])
-        keyError = np.hstack(qkvErrors[1])
-        valueError = np.hstack(qkvErrors[2])
-        error = np.hstack([queryError, keyError, valueError])
-        self.qkvError += self.lnOut.T @ error
+        queryError = np.concatenate(qkvErrors[0], axis=-1)
+        keyError = np.concatenate(qkvErrors[1], axis=-1)
+        valueError = np.concatenate(qkvErrors[2], axis=-1)
+        error = np.concatenate([queryError, keyError, valueError], axis=-1)
+        self.qkvError += (np.swapaxes(self.lnOut, -1, -2) @ error).sum(0)
         # print(error.shape, self.qkv.shape)
-        error = error @ self.qkv.T
+        error = error @ np.swapaxes(self.qkv, -1, -2)
 
-        self.bError += error
-        self.gError += error * self.z
+        self.bError += error.sum(0)
+        self.gError += (error * self.z).sum(0)
         # derivative of layer norm
         error *= self.g
         n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        stdev = np.sqrt(self.var + 1e-5)
         norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
+        sums = norm.sum(-1, keepdims=True)
+        errSums = error.sum(-1, keepdims=True)
         self.error = 1 / (n * stdev) * (n * error - errSums - self.z * sums) + initError
 
     def normalizeError(self, batchSize: int):

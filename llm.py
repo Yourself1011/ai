@@ -36,6 +36,7 @@ from utils import layerNorm, softmax
 class LLM(LLMBase):
     def __init__(
         self,
+        batchSize: int,
         vocabSize: int,
         embedDim: int,
         contextSize: int,
@@ -47,6 +48,7 @@ class LLM(LLMBase):
         self.contextSize = contextSize
         self.headCount = headCount
         self.layerCount = layerCount
+        self.batchSize = batchSize
         (self.merges, self.vocab) = load(vocabSize)
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
@@ -250,14 +252,17 @@ class LLM(LLMBase):
     def feedForward(self, input: list[int]):
         # start = time.time()
         # output tokens included, for training
-        self.tokens = np.array(input[: self.contextSize + 1])
+        self.tokens = np.array(
+            input[: (self.contextSize + 1) * self.batchSize]
+        ).reshape((self.batchSize, self.contextSize + 1))
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(self.tokens.shape[0], self.contextSize)
+        self.inputLength = min(self.tokens[-1].shape[0], self.contextSize)
         # only the ones we input into the llm
-        self.inputTokens = np.pad(
-            self.tokens[: self.contextSize],
-            (0, max(0, self.contextSize - len(self.tokens))),
+        self.inputTokens = np.delete(self.tokens, -1, -1)
+        self.inputTokens[-1] = np.pad(
+            self.tokens[-1][: self.contextSize],
+            (0, max(0, self.contextSize - len(self.tokens[-1]))),
         )
         # print(self.inputTokens, self.tokens.size, self.inputLength)
         # print("tok", time.time() - start)
@@ -295,16 +300,20 @@ class LLM(LLMBase):
 
     def backProp(self):
         probabilities = softmax(self.a)
-        error = np.zeros((self.contextSize, self.vocabSize))
+        error = np.zeros((self.batchSize, self.contextSize, self.vocabSize))
 
         # - 1/s(xi) * (s(xi) * (1 - s(xi) - sum(s(xj))))
         # = s(xi) + sum(s(xj)) - 1
         # = s(xi) + 1 - 1
         # = s(xi)
         # print(min(self.tokens.size, self.contextSize + 1))
-        for i in range(self.inputLength - 1):
+        for i in range(self.batchSize - 1):
             error[i] = probabilities[i]
-            error[i][self.tokens[i + 1]] -= 1
+            for j in range(self.contextSize):
+                error[i][j][self.tokens[i][j + 1]] -= 1
+        for i in range(self.inputLength - 1):
+            error[-1][i] = probabilities[-1][i]
+            error[-1][i][self.tokens[-1][i + 1]] -= 1
         # print(error.sum())
         # error = np.where(
         #     np.arange(self.contextSize).reshape(self.contextSize, 1) < self.inputLength,
@@ -312,22 +321,22 @@ class LLM(LLMBase):
         #     0,
         # )
         # start = time.time()
-        sums = (error * probabilities).sum(-1).reshape((-1, 1))
+        sums = (error * probabilities).sum(-1, keepdims=True)
         error = probabilities * (error - sums)
 
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
         # print(time.time() - start)
 
-        self.bError += error
-        self.gError += error * self.z
+        self.bError += error.sum(axis=0)
+        self.gError += (error * self.z).sum(axis=0)
 
         error *= self.g
         n = error.shape[-1]
-        stdev = np.sqrt(self.var + 1e-5).reshape((-1, 1))
+        stdev = np.sqrt(self.var + 1e-5)
         norm = error * self.z
-        sums = norm.sum(-1).reshape((-1, 1))
-        errSums = error.sum(-1).reshape((-1, 1))
+        sums = norm.sum(-1, keepdims=True)
+        errSums = error.sum(-1, keepdims=True)
         error = 1 / (n * stdev) * (n * error - errSums - self.z * sums)
 
         # mlpTime = 0
@@ -345,15 +354,23 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
         # print(probabilities[1][self.tokens[1]])
         # print(error[1][self.tokens[1]])
+        self.embedding.inputLength = self.inputLength
         self.embedding.backProp(error)
 
     def getLoss(self):
         probabilities = softmax(self.a)
-        self.loss = np.zeros((self.contextSize))
+        self.loss = np.zeros((self.batchSize, self.contextSize))
 
         # count = 0
+        for i in range(self.batchSize - 1):
+            for j in range(self.contextSize):
+                self.loss[i][j] = -np.log(
+                    probabilities[i][j][self.tokens[i][j + 1]] + 1e-20
+                )
         for i in range(self.inputLength - 1):
-            self.loss[i] = -np.log(probabilities[i][self.tokens[i + 1]] + 1e-20)
+            self.loss[-1][i] = -np.log(
+                probabilities[-1][i][self.tokens[-1][i + 1]] + 1e-20
+            )
             # print(np.std(self.a[i]))
             # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
             # print(decode([int(np.argmax(probabilities[i]))], self.vocab), end="")
@@ -441,8 +458,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(50257, 768, 1024, 12, 12)
-        # llm = LLM(5257, 384, 256, 6, 6)
+        llm = LLM(3, 50257, 768, 1024, 12, 12)
+        # llm = LLM(4, 5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -456,7 +473,7 @@ if __name__ == "__main__":
 
         if len(sys.argv) > 1 and sys.argv[1] == "test":
             message = (
-            """
+                """
 <system_prompt>
 You are ChatSkibidi, a large language model trained by Daniel Zhang.
 You are an AI assistant. Help the user to the best of your ability.
@@ -485,8 +502,8 @@ ChatSkibidi: Fucking Antarctica. How did you make it this far without knowing it
 </system_prompt>
 
 User: """
-            + input("> ")
-            + "ChatSkibidi:"
+                + input("> ")
+                + "ChatSkibidi:"
             )
             print("ChatSkibidi:", end="")
             # message = input("> ")
@@ -506,9 +523,7 @@ User: """
                 )
                 if token == 256:
                     # break
-                    message += ("\nUser: "
-                        + input("\n> ")
-                        + "\nAssistant:")
+                    message += "\nUser: " + input("\n> ") + "\nAssistant:"
                     print("ChatSkibidi:", end="")
                 else:
                     print(new, end="", flush=True)
@@ -526,13 +541,15 @@ User: """
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 240
+                n = 480
                 # n = 8
-                for batch in range(n):
+                for batch in range(round(n / llm.batchSize)):
                     totalStart = time.time()
                     # utils.smTime = 0
                     # start = time.time()
-                    llm.feedForward(getData(llm.contextSize, llm.merges))
+                    llm.feedForward(
+                        getData((llm.contextSize + 1) * llm.batchSize, llm.merges)
+                    )
                     # print(decode(getData(llm.contextSize, llm.merges), llm.vocab))
                     # llm.feedForward(beeMovie)  # if batch % 2 else shrek)
                     # llm.feedForward(beeMovie[random.randint(0, len(beeMovie)) :])
@@ -549,7 +566,7 @@ User: """
                     # )
                     # print("de", time.time() - start)
                     llm.getLoss()
-                   # start = time.time()
+                    # start = time.time()
                     llm.backProp()
                     # print("bp", time.time() - start)
                     print(
