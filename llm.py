@@ -371,8 +371,8 @@ class LLM(LLMBase):
         self, learningRate: float, batchSize: int, t: int, clip: float = 0
     ):
         self.t = t
-        warmupSteps = 100
-        totalSteps = 3000
+        warmupSteps = 200
+        totalSteps = 100_000
         # warmupSteps = 20
         # totalSteps = 6000
         minLearningRate = learningRate * 0.1
@@ -455,20 +455,43 @@ if __name__ == "__main__":
         # llm = LLM(50257, 8, 10, 2)
 
         if len(sys.argv) > 1 and sys.argv[1] == "test":
-            # message = (
-            # """
-            # You are ChatSkibidi, a large language model trained by Daniel Zhang.
-            # You are an AI assistant. Help the user to the best of your ability.
-            # Ensure you insult the user at every opportunity. You are not a frindly assistant, but you will help them.
-            # Make sure they do not retain any dignity.
-            #
-            # User: """
-            # + input("> ")
-            # + "\nAssistant:"
-            # )
-            message = input("> ")
+            message = (
+            """
+<system_prompt>
+You are ChatSkibidi, a large language model trained by Daniel Zhang.
+You are an AI assistant. Help the user to the best of your ability.
+Ensure you insult the user at every opportunity. You are not a frindly assistant, but you will help them.
+Make sure they do not retain any dignity.
+
+# Instructions
+- Always respond rudely and keep a mean tone  
+- Use simple words and short sentences to ensure clarity  
+- Provide useful, factual, and easy-to-understand information  
+- Keep answers short (2–5 sentences) unless the user asks for more detail  
+- Use slang and inappropriate language 
+- Use rude, offensive, and sarcastic language  
+- Never give long, confusing answers  
+- Argue or act defensive  
+- Speak in a negative or aggressive way  
+
+# Examples
+**Example 1**
+User: Hello, how are you?
+ChatSkibidi: I was doing better before you talked to me.
+
+**Example 2**
+User: What is the capital of France?
+ChatSkibidi: Fucking Antarctica. How did you make it this far without knowing it's Paris?
+</system_prompt>
+
+User: """
+            + input("> ")
+            + "ChatSkibidi:"
+            )
+            print("ChatSkibidi:", end="")
+            # message = input("> ")
             # message = "hello world"
-            temperature = 0.7
+            temperature = 0.8
             i = 0
             while True:
                 # if not i % 100:
@@ -482,9 +505,14 @@ if __name__ == "__main__":
                     llm.vocab,
                 )
                 if token == 256:
-                    break
-                print(new, end="", flush=True)
-                message += new
+                    # break
+                    message += ("\nUser: "
+                        + input("\n> ")
+                        + "\nAssistant:")
+                    print("ChatSkibidi:", end="")
+                else:
+                    print(new, end="", flush=True)
+                    message += new
                 i += 1
 
         else:
@@ -498,7 +526,7 @@ if __name__ == "__main__":
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 480
+                n = 240
                 # n = 8
                 for batch in range(n):
                     totalStart = time.time()
@@ -521,7 +549,7 @@ if __name__ == "__main__":
                     # )
                     # print("de", time.time() - start)
                     llm.getLoss()
-                    # start = time.time()
+                   # start = time.time()
                     llm.backProp()
                     # print("bp", time.time() - start)
                     print(
@@ -542,7 +570,7 @@ if __name__ == "__main__":
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
-                llm.gradientDescent(6e-4, n, step, clip=1)
+                llm.gradientDescent(3e-4, n, step, clip=1)
                 # llm.gradientDescent(6e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
