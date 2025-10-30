@@ -10,7 +10,7 @@ except Exception:
     pass
 import numpy.typing as npt
 
-# smTime = 0
+smTime = 0
 
 
 def sigmoid(x):
@@ -53,7 +53,7 @@ def softmax(x, T: float = 1):
     # global smTime
     # start = time.time()
     adj = x / T if T != 1 else x
-    exp = np.e ** (
+    exp = np.exp(
         adj - adj.max(-1, keepdims=True)
     )  # we subtract the highest number, to keep values from getting too big
     res = exp / exp.sum(-1, keepdims=True)

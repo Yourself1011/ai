@@ -4,6 +4,7 @@ import random
 import sys
 import time
 from multiprocessing import Pool
+import utils
 
 import numpy as np
 
@@ -256,12 +257,15 @@ class LLM(LLMBase):
     def feedForward(self, input: list[int]):
         # start = time.time()
         # output tokens included, for training
-        self.tokens = np.resize(np.array(
-            input[: (self.contextSize + 1) * self.batchSize]
-        ), (self.batchSize, self.contextSize + 1))
+        self.tokens = np.resize(
+            np.array(input[: (self.contextSize + 1) * self.batchSize]),
+            (self.batchSize, self.contextSize + 1),
+        )
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(len(input) - (self.batchSize - 1) * (self.contextSize + 1), self.contextSize)
+        self.inputLength = min(
+            len(input) - (self.batchSize - 1) * (self.contextSize + 1), self.contextSize
+        )
         # only the ones we input into the llm
         self.inputTokens = np.delete(self.tokens, -1, -1)
         self.inputTokens[-1] = np.pad(
@@ -290,7 +294,7 @@ class LLM(LLMBase):
             # start = time.time()
             self.mlps[i].feedForward(lastLayer)
             lastLayer = self.mlps[i].a.copy()
-        #     mlpTime += time.time() - start
+            # mlpTime += time.time() - start
         # print(attnTime, mlpTime)
 
         lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
@@ -462,8 +466,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(1, 50257, 768, 1024, 12, 12)
-        # llm = LLM(4, 5257, 384, 256, 6, 6)
+        # llm = LLM(1, 50257, 768, 1024, 12, 12)
+        llm = LLM(4, 5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -546,7 +550,7 @@ User: """
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 8
+                n = 32
                 for batch in range(round(n / llm.batchSize)):
                     totalStart = time.time()
                     # utils.smTime = 0
