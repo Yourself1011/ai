@@ -276,7 +276,7 @@ class LLM(LLMBase):
         self.embedding.feedForward(self.inputTokens)
         # print("emb", time.time() - start)
         # start = time.time()
-        lastLayer = self.embedding.a
+        lastLayer = self.embedding.a.copy()
         # print("nor", time.time() - start)
         # print(self.embedding.a)
 
@@ -285,11 +285,11 @@ class LLM(LLMBase):
         for i in range(self.layerCount):
             # start = time.time()
             self.attentions[i].feedForward(lastLayer)
-            lastLayer = self.attentions[i].a
+            lastLayer = self.attentions[i].a.copy()
             # attnTime += time.time() - start
             # start = time.time()
             self.mlps[i].feedForward(lastLayer)
-            lastLayer = self.mlps[i].a
+            lastLayer = self.mlps[i].a.copy()
         #     mlpTime += time.time() - start
         # print(attnTime, mlpTime)
 
@@ -298,7 +298,7 @@ class LLM(LLMBase):
         # print(lastLayer)
         # start = time.time()
         self.embedding.decode(lastLayer)
-        self.a = self.embedding.decoded
+        self.a = self.embedding.decoded.copy()
         # print("dec", time.time() - start)
         # print(self.a)
 
@@ -545,8 +545,8 @@ User: """
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                n = 480
-                # n = 8
+                # n = 480
+                n = 8
                 for batch in range(round(n / llm.batchSize)):
                     totalStart = time.time()
                     # utils.smTime = 0
