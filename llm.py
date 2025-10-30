@@ -5,6 +5,7 @@ import sys
 import time
 from multiprocessing import Pool
 import utils
+import os
 
 import numpy as np
 
@@ -110,7 +111,7 @@ class LLM(LLMBase):
             mlpg.append(self.mlps[i].g)
             mlpbeta.append(self.mlps[i].beta)
 
-        with open("data/params.npz", "wb") as f:
+        with open("data/tmp.params.npz", "wb") as f:
             np.savez(
                 f,
                 attnqkv=np.hstack(attnqkv),
@@ -129,6 +130,7 @@ class LLM(LLMBase):
                 words=self.embedding.words,
                 allow_pickle=False,
             )
+        os.rename("data/tmp.params.npz", "data/params.npz")
 
         data = {}
         stackData = {}
@@ -162,7 +164,7 @@ class LLM(LLMBase):
         for k, v in self.embedding.v.items():
             data["ev" + k] = v
 
-        with open("data/adamw.npz", "wb") as f:
+        with open("data/tmp.adamw.npz", "wb") as f:
             np.savez(
                 f,
                 **data,
@@ -170,6 +172,7 @@ class LLM(LLMBase):
                 t=self.t,
                 allow_pickle=False,
             )
+        os.rename("data/tmp.adamw.npz", "data/adamw.npz")
         # print(data["smb"][0][0])
 
         with open("data/history.csv", "w", newline="") as file:
