@@ -50,7 +50,7 @@ def addToBuffer(merges, amt):
     buffer = []
     while len(buffer) < amt:
         start = time.time()
-        filtered = getBee()
+        filtered = pj()
         # print(filtered)
         new = encode(filtered, merges) + [256]
         buffer += new

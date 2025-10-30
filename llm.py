@@ -15,6 +15,9 @@ try:
     if cupy.cuda.is_available():
         np = cupy
         usingCupy = True
+
+    # Change this to gpu
+    # np.cuda.runtime.setDevice(1)
 except Exception:
     usingCupy = False
 
@@ -80,6 +83,7 @@ class LLM(LLMBase):
         super().__init__()
 
     def save(self):
+        # TODO: write to temp file and move temp file to prevent data loss on unexpected interrupt
         print("saving, do not exit")
         start = time.time()
         attnqkv = []
@@ -252,12 +256,12 @@ class LLM(LLMBase):
     def feedForward(self, input: list[int]):
         # start = time.time()
         # output tokens included, for training
-        self.tokens = np.array(
+        self.tokens = np.resize(np.array(
             input[: (self.contextSize + 1) * self.batchSize]
-        ).reshape((self.batchSize, self.contextSize + 1))
+        ), (self.batchSize, self.contextSize + 1))
         # print("enc", time.time() - start)
         # start = time.time()
-        self.inputLength = min(self.tokens[-1].shape[0], self.contextSize)
+        self.inputLength = min(len(input) - (self.batchSize - 1) * (self.contextSize + 1), self.contextSize)
         # only the ones we input into the llm
         self.inputTokens = np.delete(self.tokens, -1, -1)
         self.inputTokens[-1] = np.pad(
@@ -444,7 +448,7 @@ class LLM(LLMBase):
         self.bError = np.zeros((self.contextSize, self.embedDim))
 
     def getToken(self, index: int, T: float):
-        probabilities = softmax(self.a[index], T=T)
+        probabilities = softmax(self.a[0][index], T=T)
         i = int(np.random.choice(self.vocabSize, size=1, p=probabilities)[0])
         # n = random.random()
         # i = 0
@@ -458,7 +462,7 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        llm = LLM(3, 50257, 768, 1024, 12, 12)
+        llm = LLM(1, 50257, 768, 1024, 12, 12)
         # llm = LLM(4, 5257, 384, 256, 6, 6)
         start = time.time()
         try:
@@ -477,7 +481,7 @@ if __name__ == "__main__":
 <system_prompt>
 You are ChatSkibidi, a large language model trained by Daniel Zhang.
 You are an AI assistant. Help the user to the best of your ability.
-Ensure you insult the user at every opportunity. You are not a frindly assistant, but you will help them.
+Ensure you insult the user at every opportunity. You are not a friendly assistant, but you will help them.
 Make sure they do not retain any dignity.
 
 # Instructions
