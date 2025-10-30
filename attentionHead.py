@@ -27,14 +27,26 @@ class AttentionHead:
         # self.key = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueUp = np.random.normal(0, 1, (embedDim // headCount, embedDim))
-        self.query: npt.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.key: npt.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.value: npt.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.a = np.empty((contextSize, embedDim))
+        self.query: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
+        self.key: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
+        self.value: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
+        self.a = np.empty((contextSize, embedDim), dtype=np.float32)
 
-        self.queryError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.keyError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
-        self.valueError: npt.NDArray = np.empty((contextSize, embedDim // headCount))
+        self.queryError: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
+        self.keyError: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
+        self.valueError: npt.NDArray = np.empty(
+            (contextSize, embedDim // headCount), dtype=np.float32
+        )
 
     def feedForward(
         self,

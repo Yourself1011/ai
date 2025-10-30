@@ -18,20 +18,20 @@ class Embedding(Layer):
         self.vocabSize = vocabSize
         self.words = np.random.normal(
             0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim)
-        )
+        ).astype(np.float32)
         self.decodeWords = np.random.normal(
             0, 1 / np.sqrt(embedDim), size=(vocabSize, embedDim)
-        )
+        ).astype(np.float32)
         self.positions = np.random.normal(
             0, 1 / np.sqrt(embedDim), size=(contextSize, embedDim)
-        )
+        ).astype(np.float32)
         self.contextSize = contextSize
-        self.error = np.zeros((contextSize, embedDim))
-        self.wordsError = np.zeros((vocabSize, embedDim))
-        self.decodeWordsError = np.zeros((vocabSize, embedDim))
-        self.positionsError = np.zeros((contextSize, embedDim))
-        self.a = np.empty((contextSize, embedDim))
-        self.decoded = np.empty(vocabSize)
+        self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.wordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
+        self.decodeWordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
+        self.positionsError = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.a = np.empty((contextSize, embedDim), dtype=np.float32)
+        self.decoded = np.empty(vocabSize, dtype=np.float32)
         self.inputLength = 0
         super().__init__()
 

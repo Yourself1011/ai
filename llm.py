@@ -57,14 +57,16 @@ class LLM(LLMBase):
         (self.merges, self.vocab) = load(vocabSize)
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
-        self.g = np.ones((contextSize, embedDim))
-        self.b = np.zeros((contextSize, embedDim))
-        self.gError = np.zeros((contextSize, embedDim))
-        self.bError = np.zeros((contextSize, embedDim))
+        self.g = np.ones((contextSize, embedDim), dtype=np.float32)
+        self.b = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.gError = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.bError = np.zeros((contextSize, embedDim), dtype=np.float32)
 
         self.t = 1
 
-        attentionMask = np.full((self.contextSize, self.contextSize), False)
+        attentionMask = np.full(
+            (self.contextSize, self.contextSize), False, dtype=np.float32
+        )
         for i in range(self.contextSize):
             attentionMask[i][: i + 1] = True
         # attentionMask = np.full((self.contextSize, self.contextSize), True)
@@ -75,9 +77,9 @@ class LLM(LLMBase):
         ]
 
         self.mlps = [Mlp(self.contextSize, self.embedDim) for _ in range(layerCount)]
-        self.a = np.empty((contextSize, vocabSize))
+        self.a = np.empty((contextSize, vocabSize), dtype=np.float32)
         self.inputLength = 0
-        self.loss = np.ones((self.contextSize, self.vocabSize))
+        self.loss = np.ones((self.contextSize, self.vocabSize), dtype=np.float32)
         # self.pool = pool
 
         self.avgLoss = 0

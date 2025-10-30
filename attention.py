@@ -34,18 +34,22 @@ class Attention(Layer):
             for _ in range(headCount)
         ]
 
-        self.qkv = np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, embedDim * 3))
-        self.proj = np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, embedDim))
+        self.qkv = np.random.normal(
+            0, 1 / np.sqrt(embedDim), (embedDim, embedDim * 3)
+        ).astype(np.float32)
+        self.proj = np.random.normal(
+            0, 1 / np.sqrt(embedDim), (embedDim, embedDim)
+        ).astype(np.float32)
 
-        self.g: npt.NDArray = np.ones((contextSize, embedDim))
-        self.b: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.g: npt.NDArray = np.ones((contextSize, embedDim), dtype=np.float32)
+        self.b: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
 
-        self.qkvError = np.zeros((embedDim, embedDim * 3))
-        self.projError = np.zeros((embedDim, embedDim))
+        self.qkvError = np.zeros((embedDim, embedDim * 3), dtype=np.float32)
+        self.projError = np.zeros((embedDim, embedDim), dtype=np.float32)
 
-        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.bError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.error = np.zeros((contextSize, embedDim))
+        self.gError: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.bError: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
         # self.pool = pool
         super().__init__()
 

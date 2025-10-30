@@ -25,27 +25,33 @@ class Mlp(Layer):
         self.contextSize = contextSize
         self.embedDim = embedDim
         self.w: list[npt.NDArray] = [
-            np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, 4 * embedDim)),
-            np.random.normal(0, 1 / np.sqrt(embedDim), (4 * embedDim, embedDim)),
+            np.random.normal(0, 1 / np.sqrt(embedDim), (embedDim, 4 * embedDim)).astype(
+                np.float32
+            ),
+            np.random.normal(0, 1 / np.sqrt(embedDim), (4 * embedDim, embedDim)).astype(
+                np.float32
+            ),
         ]
         self.b: list[npt.NDArray] = [
-            np.zeros(4 * embedDim),
-            np.zeros(embedDim),
+            np.zeros(4 * embedDim, dtype=np.float32),
+            np.zeros(embedDim, dtype=np.float32),
         ]
-        self.g: npt.NDArray = np.ones((contextSize, embedDim))
-        self.beta: npt.NDArray = np.zeros((contextSize, embedDim))
+        self.g: npt.NDArray = np.ones((contextSize, embedDim), dtype=np.float32)
+        self.beta: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
 
         self.wError: list[npt.NDArray] = [
-            np.zeros((embedDim, 4 * embedDim)),
-            np.zeros((4 * embedDim, embedDim)),
+            np.zeros((embedDim, 4 * embedDim), dtype=np.float32),
+            np.zeros((4 * embedDim, embedDim), dtype=np.float32),
         ]
         self.bError: list[npt.NDArray] = [
-            np.zeros(4 * embedDim),
-            np.zeros(embedDim),
+            np.zeros(4 * embedDim, dtype=np.float32),
+            np.zeros(embedDim, dtype=np.float32),
         ]
-        self.gError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.betaError: npt.NDArray = np.zeros((contextSize, embedDim))
-        self.error = np.zeros((contextSize, embedDim))
+        self.gError: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.betaError: npt.NDArray = np.zeros(
+            (contextSize, embedDim), dtype=np.float32
+        )
+        self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
         super().__init__()
 
     def feedForward(self, lastLayer: npt.NDArray):
