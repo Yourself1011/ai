@@ -1,14 +1,17 @@
 import time
 import numpy as np
+import numpy.typing as npt
+
+useCupy = False
 
 try:
     import cupy
 
     if cupy.cuda.is_available():
         np = cupy
+        useCupy = True
 except Exception:
     pass
-import numpy.typing as npt
 
 smTime = 0
 
@@ -59,3 +62,11 @@ def softmax(x, T: float = 1):
     res = exp / exp.sum(-1, keepdims=True)
     # smTime += time.time() - start
     return res
+
+
+if useCupy:
+    sigmoid = np.fuse(sigmoid)
+    sigmoidPrime = np.fuse(sigmoidPrime)
+    gelu = np.fuse(gelu)
+    layerNorm = np.fuse(layerNorm)
+    softmax = np.fuse(softmax)
