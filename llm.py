@@ -57,8 +57,13 @@ class LLM(LLMBase):
         (self.merges, self.vocab) = load(vocabSize)
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
+
         self.g = np.ones((contextSize, embedDim), dtype=np.float32)
         self.b = np.zeros((contextSize, embedDim), dtype=np.float32)
+
+        self.g16 = self.g.astype(np.float16)
+        self.b16 = self.b.astype(np.float16)
+
         self.gError = np.zeros((contextSize, embedDim), dtype=np.float32)
         self.bError = np.zeros((contextSize, embedDim), dtype=np.float32)
 
@@ -302,7 +307,9 @@ class LLM(LLMBase):
             # mlpTime += time.time() - start
         # print(attnTime, mlpTime)
 
-        lastLayer, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
+        lastLayer, self.z, self.mean, self.var = layerNorm(
+            lastLayer, self.g16, self.b16
+        )
 
         # print(lastLayer)
         # start = time.time()
@@ -453,6 +460,9 @@ class LLM(LLMBase):
         self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
         self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
 
+        self.g16 = self.g.astype(np.float16)
+        self.b16 = self.b.astype(np.float16)
+
         self.gError = np.zeros((self.contextSize, self.embedDim))
         self.bError = np.zeros((self.contextSize, self.embedDim))
 
@@ -472,7 +482,7 @@ if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
         # llm = LLM(1, 50257, 768, 1024, 12, 12)
-        llm = LLM(4, 5257, 384, 256, 6, 6)
+        llm = LLM(1, 5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()

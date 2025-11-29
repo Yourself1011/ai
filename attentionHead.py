@@ -28,15 +28,15 @@ class AttentionHead:
         # self.valueDown = np.random.normal(0, 1, (embedDim, embedDim // headCount))
         # self.valueUp = np.random.normal(0, 1, (embedDim // headCount, embedDim))
         self.query: npt.NDArray = np.empty(
-            (contextSize, embedDim // headCount), dtype=np.float32
+            (contextSize, embedDim // headCount), dtype=np.float16
         )
         self.key: npt.NDArray = np.empty(
-            (contextSize, embedDim // headCount), dtype=np.float32
+            (contextSize, embedDim // headCount), dtype=np.float16
         )
         self.value: npt.NDArray = np.empty(
-            (contextSize, embedDim // headCount), dtype=np.float32
+            (contextSize, embedDim // headCount), dtype=np.float16
         )
-        self.a = np.empty((contextSize, embedDim), dtype=np.float32)
+        self.a = np.empty((contextSize, embedDim), dtype=np.float16)
 
         self.queryError: npt.NDArray = np.empty(
             (contextSize, embedDim // headCount), dtype=np.float32
@@ -61,8 +61,8 @@ class AttentionHead:
         attentionPattern = np.where(
             self.mask,
             self.query @ np.swapaxes(self.key, -1, -2),
-            -1e9,
-        ) / (np.sqrt(self.embedDim // self.headCount))
+            -1 / 1024,
+        ) / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
         # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
         self.weights = softmax(attentionPattern)

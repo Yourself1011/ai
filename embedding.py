@@ -25,12 +25,15 @@ class Embedding(Layer):
         self.positions = np.random.normal(
             0, 1 / np.sqrt(embedDim), size=(contextSize, embedDim)
         ).astype(np.float32)
+        self.words16 = self.words.astype(np.float16)
+        self.positions16 = self.positions.astype(np.float16)
+
         self.contextSize = contextSize
         self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
         self.wordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
         self.decodeWordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
         self.positionsError = np.zeros((contextSize, embedDim), dtype=np.float32)
-        self.a = np.empty((contextSize, embedDim), dtype=np.float32)
+        self.a = np.empty((contextSize, embedDim), dtype=np.float16)
         self.decoded = np.empty(vocabSize, dtype=np.float32)
         self.inputLength = 0
         super().__init__()
@@ -38,7 +41,7 @@ class Embedding(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         # print(self.words[lastLayer].shape, self.positions.shape)
-        self.a = self.words[lastLayer] + self.positions
+        self.a = self.words16[lastLayer] + self.positions16
         # print(self.words.max(0))
 
     def backProp(self, error: npt.NDArray):
@@ -51,7 +54,7 @@ class Embedding(Layer):
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
-        self.decoded = lastLayer @ self.words.T
+        self.decoded = lastLayer @ self.words16.T
 
     def decodeBackProp(self, error: npt.NDArray):
         self.wordsError += (np.swapaxes(error, -1, -2) @ self.decodeInput).sum(axis=0)
@@ -70,6 +73,9 @@ class Embedding(Layer):
         self.positions = self.adamW(
             "positions", self.positions, self.positionsError, learningRate, t, mult
         )
+
+        self.words16 = self.words.astype(np.float16)
+        self.positions16 = self.positions.astype(np.float16)
 
         # self.decodeWords = self.adamW(
         # "decodeWords", self.decodeWords, self.decodeWordsError, learningRate, t, mult

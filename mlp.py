@@ -39,6 +39,11 @@ class Mlp(Layer):
         self.g: npt.NDArray = np.ones((contextSize, embedDim), dtype=np.float32)
         self.beta: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
 
+        self.w16 = [self.w[i].astype(np.float16) for i in range(2)]
+        self.b16 = [self.b[i].astype(np.float16) for i in range(2)]
+        self.g16 = self.g.astype(np.float16)
+        self.beta16 = self.beta.astype(np.float16)
+
         self.wError: list[npt.NDArray] = [
             np.zeros((embedDim, 4 * embedDim), dtype=np.float32),
             np.zeros((4 * embedDim, embedDim), dtype=np.float32),
@@ -57,17 +62,17 @@ class Mlp(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.lnOut, self.z, self.mean, self.var = layerNorm(
-            lastLayer, self.g, self.beta
+            lastLayer, self.g16, self.beta16
         )
         lastLayer = self.lnOut
         # start = time.time()
-        self.layer1 = lastLayer @ self.w[0] + self.b[0]
+        self.layer1 = lastLayer @ self.w16[0] + self.b16[0]
         # self.gelu, self.tanh, self.inside = gelu(self.layer1)
         # use sigmoid approximation instad of tanh
         self.multiplied = self.layer1 * 1.702
         self.sigmoid = sigmoid(self.multiplied)
         self.gelu = self.layer1 * self.sigmoid
-        self.layer2 = self.gelu @ self.w[1] + self.b[1]
+        self.layer2 = self.gelu @ self.w16[1] + self.b16[1]
         self.a = self.layer2 + self.input
         # print(time.time() - start)
 
@@ -126,6 +131,11 @@ class Mlp(Layer):
             "b0", self.b[0], self.bError[0], learningRate, t, mult, decay=0
         )
         self.w[0] = self.adamW("w0", self.w[0], self.wError[0], learningRate, t, mult)
+
+        self.w16 = [self.w[i].astype(np.float16) for i in range(2)]
+        self.b16 = [self.b[i].astype(np.float16) for i in range(2)]
+        self.g16 = self.g.astype(np.float16)
+        self.beta16 = self.beta.astype(np.float16)
 
         self.wError: list[npt.NDArray] = [
             np.zeros((self.embedDim, 4 * self.embedDim)),

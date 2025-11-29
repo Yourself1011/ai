@@ -68,5 +68,5 @@ if useCupy:
     sigmoid = np.fuse(sigmoid)
     sigmoidPrime = np.fuse(sigmoidPrime)
     gelu = np.fuse(gelu)
-    layerNorm = np.fuse(layerNorm)
-    softmax = np.fuse(softmax)
+    # layerNorm = np.fuse(layerNorm)
+    # softmax = np.fuse(softmax)

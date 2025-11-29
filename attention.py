@@ -44,6 +44,11 @@ class Attention(Layer):
         self.g: npt.NDArray = np.ones((contextSize, embedDim), dtype=np.float32)
         self.b: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
 
+        self.qkv16 = self.qkv.astype(np.float16)
+        self.proj16 = self.proj.astype(np.float16)
+        self.g16 = self.g.astype(np.float16)
+        self.b16 = self.b.astype(np.float16)
+
         self.qkvError = np.zeros((embedDim, embedDim * 3), dtype=np.float32)
         self.projError = np.zeros((embedDim, embedDim), dtype=np.float32)
 
@@ -55,11 +60,13 @@ class Attention(Layer):
 
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
-        self.lnOut, self.z, self.mean, self.var = layerNorm(lastLayer, self.g, self.b)
+        self.lnOut, self.z, self.mean, self.var = layerNorm(
+            lastLayer, self.g16, self.b16
+        )
 
         q, k, v = [
             np.split(x, self.headCount, axis=-1)
-            for x in np.split(self.lnOut @ self.qkv, 3, axis=-1)
+            for x in np.split(self.lnOut @ self.qkv16, 3, axis=-1)
         ]
         attentionOutputs = []
         for i in range(len(self.heads)):
@@ -78,7 +85,7 @@ class Attention(Layer):
         # attentionOutputs = [x.get() for x in res]
 
         self.combined = np.concatenate(attentionOutputs, axis=-1)
-        self.a = self.combined @ self.proj + self.input
+        self.a = self.combined @ self.proj16 + self.input
 
     def backProp(self, error: npt.NDArray):
         initError = error
@@ -136,6 +143,11 @@ class Attention(Layer):
         self.g = self.adamW("g", self.g, self.gError, learningRate, t, mult, decay=0)
         self.proj = self.adamW("proj", self.proj, self.projError, learningRate, t, mult)
         self.qkv = self.adamW("qkv", self.qkv, self.qkvError, learningRate, t, mult)
+
+        self.qkv16 = self.qkv.astype(np.float16)
+        self.proj16 = self.proj.astype(np.float16)
+        self.g16 = self.g.astype(np.float16)
+        self.b16 = self.b.astype(np.float16)
 
         self.qkvError = np.zeros((self.embedDim, self.embedDim * 3))
         self.projError = np.zeros((self.embedDim, self.embedDim))
