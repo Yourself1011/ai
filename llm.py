@@ -194,9 +194,13 @@ class LLM(LLMBase):
         else:
             keys = data.keys()
         self.b = data["b"]
+        self.b16 = self.b.astype(np.float16)
         self.g = data["g"]
+        self.g16 = self.g.astype(np.float16)
         self.embedding.positions = data["pos"]
+        self.embedding.positions16 = self.embedding.positions.astype(np.float16)
         self.embedding.words = data["words"]
+        self.embedding.words16 = self.embedding.words.astype(np.float16)
 
         data = {
             k: np.split(data[k], self.layerCount, axis=-1)
@@ -205,13 +209,21 @@ class LLM(LLMBase):
         }
         for i in range(self.layerCount):
             self.attentions[i].qkv = data["attnqkv"][i]
+            self.attentions[i].qkv16 = self.attentions[i].qkv.astype(np.float16)
             self.attentions[i].proj = data["attnproj"][i]
+            self.attentions[i].proj16 = self.attentions[i].proj.astype(np.float16)
             self.attentions[i].g = data["attng"][i]
+            self.attentions[i].g16 = self.attentions[i].g.astype(np.float16)
             self.attentions[i].b = data["attnb"][i]
+            self.attentions[i].b16 = self.attentions[i].b.astype(np.float16)
             self.mlps[i].w = [data["mlpw0"][i], data["mlpw1"][i]]
+            self.mlps[i].w16 = [self.mlps[i].w[j].astype(np.float16) for j in range(2)]
             self.mlps[i].b = [data["mlpb0"][i], data["mlpb1"][i]]
+            self.mlps[i].b16 = [self.mlps[i].b[j].astype(np.float16) for j in range(2)]
             self.mlps[i].g = data["mlpg"][i]
+            self.mlps[i].g16 = self.mlps[i].g.astype(np.float16)
             self.mlps[i].beta = data["mlpbeta"][i]
+            self.mlps[i].beta16 = self.mlps[i].beta.astype(np.float16)
 
         try:
             data = np.load("data/adamw.npz", allow_pickle=False)
