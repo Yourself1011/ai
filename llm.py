@@ -331,7 +331,7 @@ class LLM(LLMBase):
         # print(self.a)
 
     def backProp(self):
-        probabilities = softmax(self.a)
+        probabilities = softmax(self.a.astype(np.float32))
         error = np.zeros((self.batchSize, self.contextSize, self.vocabSize))
 
         # - 1/s(xi) * (s(xi) * (1 - s(xi) - sum(s(xj))))
@@ -390,7 +390,7 @@ class LLM(LLMBase):
         self.embedding.backProp(error)
 
     def getLoss(self):
-        probabilities = softmax(self.a)
+        probabilities = softmax(self.a.astype(np.float32))
         self.loss = np.zeros((self.batchSize, self.contextSize))
 
         # count = 0
