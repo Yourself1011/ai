@@ -61,7 +61,7 @@ class AttentionHead:
         attentionPattern = np.where(
             self.mask,
             self.query @ np.swapaxes(self.key, -1, -2),
-            -1 / 1024,
+            -np.finfo(np.float16).min,
         ) / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
         # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
