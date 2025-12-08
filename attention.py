@@ -61,7 +61,7 @@ class Attention(Layer):
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.lnOut, self.z, self.mean, self.var = layerNorm(
-            lastLayer, self.g16, self.b16
+            lastLayer.astype(np.float32), self.g16, self.b16
         )
 
         q, k, v = [
@@ -89,7 +89,9 @@ class Attention(Layer):
 
     def backProp(self, error: npt.NDArray):
         initError = error
-        self.projError += (np.swapaxes(self.combined, -1, -2) @ error).sum(0)
+        self.projError += (
+            np.swapaxes(self.combined, -1, -2) @ error.astype(np.float16)
+        ).sum(0)
 
         splitError = np.split(
             error @ np.swapaxes(self.proj, -1, -2), self.headCount, axis=-1
@@ -119,8 +121,8 @@ class Attention(Layer):
         # print(error.shape, self.qkv.shape)
         error = error @ np.swapaxes(self.qkv, -1, -2)
 
-        self.bError += error.sum(0)
-        self.gError += (error * self.z).sum(0)
+        self.bError += error.astype(np.float16).sum(0)
+        self.gError += (error.astype(np.float16) * self.z).sum(0)
         # derivative of layer norm
         error *= self.g
         n = error.shape[-1]

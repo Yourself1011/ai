@@ -55,17 +55,17 @@ class AttentionHead:
         k: npt.NDArray,
         v: npt.NDArray,
     ):
-        self.query = q
-        self.key = k
-        self.value = v
+        self.query = q.astype(np.float32)
+        self.key = k.astype(np.float32)
+        self.value = v.astype(np.float16)
         attentionPattern = np.where(
             self.mask,
             self.query @ np.swapaxes(self.key, -1, -2),
-            np.finfo(np.float16).min,
+            np.finfo(np.float32).min,
         ) / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
         # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
-        self.weights = softmax(attentionPattern)
+        self.weights = softmax(attentionPattern.astype(np.float32))
         # value = np.matmul(lastLayer, np.matmul(self.valueUp, self.valueDown))
         # print("alskdjf")
         # change = (
@@ -73,15 +73,17 @@ class AttentionHead:
         #     * weights.reshape(contextSize, contextSize, 1)
         # ).sum(1)
 
-        self.a = self.weights @ self.value
+        self.a = self.weights.astype(np.float16) @ self.value
         return self.a
 
     def backProp(
         self, error: npt.NDArray
     ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
-        self.valueError = np.swapaxes(self.weights, -1, -2) @ error
+        self.valueError = np.swapaxes(
+            self.weights.astype(np.float16), -1, -2
+        ) @ error.astype(np.float16)
 
-        error = error @ np.swapaxes(self.value, -1, -2)
+        error = error @ np.swapaxes(self.value.astype(np.float32), -1, -2)
         sums = (error * self.weights).sum(-1, keepdims=True)
         error = (
             self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))

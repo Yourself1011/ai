@@ -320,12 +320,12 @@ class LLM(LLMBase):
         # print(attnTime, mlpTime)
 
         lastLayer, self.z, self.mean, self.var = layerNorm(
-            lastLayer, self.g16, self.b16
+            lastLayer.astype(np.float32), self.g16, self.b16
         )
 
         # print(lastLayer)
         # start = time.time()
-        self.embedding.decode(lastLayer)
+        self.embedding.decode(lastLayer.astype(np.float16))
         self.a = self.embedding.decoded.copy()
         # print("dec", time.time() - start)
         # print(self.a)
@@ -360,8 +360,8 @@ class LLM(LLMBase):
         error = self.embedding.error
         # print(time.time() - start)
 
-        self.bError += error.sum(axis=0)
-        self.gError += (error * self.z).sum(axis=0)
+        self.bError += error.astype(np.float16).sum(axis=0)
+        self.gError += (error.astype(np.float16) * self.z).sum(axis=0)
 
         error *= self.g
         n = error.shape[-1]

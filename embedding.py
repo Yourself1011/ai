@@ -29,7 +29,7 @@ class Embedding(Layer):
         self.positions16 = self.positions.astype(np.float16)
 
         self.contextSize = contextSize
-        self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.error = np.zeros((contextSize, embedDim), dtype=np.float16)
         self.wordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
         self.decodeWordsError = np.zeros((vocabSize, embedDim), dtype=np.float32)
         self.positionsError = np.zeros((contextSize, embedDim), dtype=np.float32)
@@ -47,19 +47,21 @@ class Embedding(Layer):
     def backProp(self, error: npt.NDArray):
         for j in range(self.input.shape[0] - 1):
             for i in range(self.contextSize):
-                self.wordsError[self.input[j][i]] += error[j][i]
+                self.wordsError[self.input[j][i]] += error.astype(np.float16)[j][i]
         for i in range(self.inputLength):
-            self.wordsError[self.input[-1][i]] += error[-1][i]
-        self.positionsError += error.sum(0)
+            self.wordsError[self.input[-1][i]] += error.astype(np.float16)[-1][i]
+        self.positionsError += error.astype(np.float16).sum(0)
 
     def decode(self, lastLayer: npt.NDArray):
         self.decodeInput = lastLayer
         self.decoded = lastLayer @ self.words16.T
 
     def decodeBackProp(self, error: npt.NDArray):
-        self.wordsError += (np.swapaxes(error, -1, -2) @ self.decodeInput).sum(axis=0)
+        self.wordsError += (
+            np.swapaxes(error, -1, -2) @ self.decodeInput.astype(np.float16)
+        ).sum(axis=0)
         # print(error.shape, self.words.shape)
-        self.error = error @ self.words
+        self.error = error @ self.words16
 
     def normalizeError(self, batchSize: int):
         self.wordsError /= batchSize

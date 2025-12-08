@@ -56,15 +56,15 @@ class Mlp(Layer):
         self.betaError: npt.NDArray = np.zeros(
             (contextSize, embedDim), dtype=np.float32
         )
-        self.error = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.error = np.zeros((contextSize, embedDim), dtype=np.float16)
         super().__init__()
 
     def feedForward(self, lastLayer: npt.NDArray):
         self.input = lastLayer
         self.lnOut, self.z, self.mean, self.var = layerNorm(
-            lastLayer, self.g16, self.beta16
+            lastLayer.astype(np.float32), self.g16, self.beta16
         )
-        lastLayer = self.lnOut
+        lastLayer = self.lnOut.astype(np.float16)
         # start = time.time()
         self.layer1 = lastLayer @ self.w16[0] + self.b16[0]
         # self.gelu, self.tanh, self.inside = gelu(self.layer1)
@@ -79,25 +79,30 @@ class Mlp(Layer):
     def backProp(self, error: npt.NDArray):
         initError = error
         # print(error.shape)
-        self.bError[1] += error.sum(0).sum(0)
+        self.bError[1] += error.astype(np.float16).sum(0).sum(0)
         # print((self.gelu.T @ error).sum())
         # print(self.gelu.shape, error.shape)
-        self.wError[1] += (np.swapaxes(self.gelu, -1, -2) @ error).sum(0)
+        self.wError[1] += (
+            np.swapaxes(self.gelu, -1, -2) @ error.astype(np.float16)
+        ).sum(0)
         error = (
             self.sigmoid
             * (1 + self.multiplied * (1 - self.sigmoid))
-            * (error @ np.swapaxes(self.w[1], -1, -2))
+            * (error @ np.swapaxes(self.w16[1], -1, -2))
         )
 
         # print(error)
-        self.bError[0] += error.sum(0).sum(0)
+        self.bError[0] += error.astype(np.float16).sum(0).sum(0)
         # print(self.input.shape, error.shape)
-        self.wError[0] += (np.swapaxes(self.lnOut, -1, -2) @ error).sum(0)
+        self.wError[0] += (
+            np.swapaxes(self.lnOut.astype(np.float16), -1, -2)
+            @ error.astype(np.float16)
+        ).sum(0)
         # print(error.shape, self.w[0].shape)
-        error = error @ np.swapaxes(self.w[0], -1, -2)
+        error = error @ np.swapaxes(self.w16[0], -1, -2)
         # self.error += ( self.w[0] @ error.T ).T
-        self.betaError += error.sum(0)
-        self.gError += (error * self.z).sum(0)
+        self.betaError += error.astype(np.float16).sum(0)
+        self.gError += (error.astype(np.float16) * self.z).sum(0)
 
         # derivative of layer norm
         error *= self.g
