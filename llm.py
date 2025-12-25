@@ -89,6 +89,9 @@ class LLM(LLMBase):
 
         self.avgLoss = 0
         self.history = []
+
+        self.lossScale = 2**16
+
         super().__init__()
 
     def save(self):
@@ -353,6 +356,7 @@ class LLM(LLMBase):
         #     0,
         # )
         # start = time.time()
+        error *= self.lossScale
         sums = (error * probabilities).sum(-1, keepdims=True)
         error = probabilities * (error - sums)
 
@@ -436,30 +440,47 @@ class LLM(LLMBase):
             learningRate = minLearningRate
         print("    lr:", learningRate, end=" ")
 
-        self.embedding.normalizeError(batchSize)
+        self.embedding.normalizeError(batchSize * self.lossScale)
         for i in range(self.layerCount):
-            self.mlps[i].normalizeError(batchSize)
-            self.attentions[i].normalizeError(batchSize)
-        self.normalizeError(batchSize)
+            self.mlps[i].normalizeError(batchSize * self.lossScale)
+            self.attentions[i].normalizeError(batchSize * self.lossScale)
+        self.normalizeError(batchSize * self.lossScale)
 
-        magSq = 0
-        magSq += np.sum((self.embedding.wordsError) ** 2)
-        magSq += np.sum((self.embedding.positionsError)) ** 2
+        gradient = np.concatenate(
+            [
+                np.reshape(self.embedding.wordsError, -1),
+                np.reshape(self.embedding.positionsError, -1),
+                np.reshape(self.gError, -1),
+                np.reshape(self.bError, -1),
+            ],
+        )
         for i in range(self.layerCount):
-            magSq += np.sum((self.attentions[i].qkvError) ** 2)
-            magSq += np.sum((self.attentions[i].projError) ** 2)
-            magSq += np.sum((self.attentions[i].gError) ** 2)
-            magSq += np.sum((self.attentions[i].bError) ** 2)
-            magSq += np.sum((self.mlps[i].wError[0]) ** 2)
-            magSq += np.sum((self.mlps[i].wError[1]) ** 2)
-            magSq += np.sum((self.mlps[i].bError[0]) ** 2)
-            magSq += np.sum((self.mlps[i].bError[1]) ** 2)
-            magSq += np.sum((self.mlps[i].gError) ** 2)
-            magSq += np.sum((self.mlps[i].betaError) ** 2)
-        magSq += np.sum((self.gError) ** 2)
-        magSq += np.sum((self.bError) ** 2)
+            gradient = np.concatenate(
+                [
+                    gradient,
+                    np.reshape(self.attentions[i].qkvError, -1),
+                    np.reshape(self.attentions[i].projError, -1),
+                    np.reshape(self.attentions[i].gError, -1),
+                    np.reshape(self.attentions[i].bError, -1),
+                    np.reshape(self.mlps[i].wError[0], -1),
+                    np.reshape(self.mlps[i].wError[1], -1),
+                    np.reshape(self.mlps[i].bError[0], -1),
+                    np.reshape(self.mlps[i].bError[1], -1),
+                    np.reshape(self.mlps[i].gError, -1),
+                    np.reshape(self.mlps[i].betaError, -1),
+                ]
+            )
+        magSq = np.sum(gradient**2)
 
-        print("mag:", math.sqrt(magSq), end=" ")
+        print(
+            "mag:",
+            math.sqrt(magSq),
+            "min: ",
+            np.min(np.abs(gradient)),
+            "max: ",
+            np.max(np.abs(gradient)),
+            end=" ",
+        )
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
         else:
@@ -577,7 +598,7 @@ User: """
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 # n = 480
-                n = 32
+                n = 1
                 for batch in range(round(n / llm.batchSize)):
                     totalStart = time.time()
                     # utils.smTime = 0
