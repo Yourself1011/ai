@@ -57,7 +57,7 @@ class AttentionHead:
     ):
         self.query = q.astype(np.float32)
         self.key = k.astype(np.float32)
-        self.value = v.astype(np.float16)
+        self.value = v.astype(np.float32)
         attentionPattern = np.where(
             self.mask,
             self.query @ np.swapaxes(self.key, -1, -2),
@@ -73,7 +73,7 @@ class AttentionHead:
         #     * weights.reshape(contextSize, contextSize, 1)
         # ).sum(1)
 
-        self.a = self.weights.astype(np.float16) @ self.value
+        self.a = self.weights.astype(np.float16) @ self.value.astype(np.float16)
         return self.a
 
     def backProp(
@@ -83,7 +83,7 @@ class AttentionHead:
             self.weights.astype(np.float16), -1, -2
         ) @ error.astype(np.float16)
 
-        error = error @ np.swapaxes(self.value.astype(np.float32), -1, -2)
+        error = error @ np.swapaxes(self.value, -1, -2)
         sums = (error * self.weights).sum(-1, keepdims=True)
         error = (
             self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
