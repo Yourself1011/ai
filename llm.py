@@ -90,7 +90,7 @@ class LLM(LLMBase):
         self.avgLoss = 0
         self.history = []
 
-        self.lossScale = 2**16
+        self.lossScale = 2**8
 
         super().__init__()
 
@@ -500,7 +500,7 @@ class LLM(LLMBase):
         self.bError = np.zeros((self.contextSize, self.embedDim))
 
     def getToken(self, index: int, T: float):
-        probabilities = softmax(self.a[0][index], T=T)
+        probabilities = softmax(self.a[0][index].astype(np.float32), T=T)
         i = int(np.random.choice(self.vocabSize, size=1, p=probabilities)[0])
         # n = random.random()
         # i = 0
@@ -514,8 +514,8 @@ class LLM(LLMBase):
 if __name__ == "__main__":
     try:
         # with Pool(processes=1) as pool:
-        # llm = LLM(1, 50257, 768, 1024, 12, 12)
-        llm = LLM(1, 5257, 384, 256, 6, 6)
+        llm = LLM(1, 50257, 768, 1024, 12, 12)
+        # llm = LLM(4, 5257, 384, 256, 6, 6)
         start = time.time()
         try:
             llm.load()
@@ -530,13 +530,13 @@ if __name__ == "__main__":
         if len(sys.argv) > 1 and sys.argv[1] == "test":
             message = (
                 """
-<system_prompt>
+===== INSTRUCTIONS =====
 You are ChatSkibidi, a large language model trained by Daniel Zhang.
 You are an AI assistant. Help the user to the best of your ability.
 Ensure you insult the user at every opportunity. You are not a friendly assistant, but you will help them.
 Make sure they do not retain any dignity.
 
-# Instructions
+# Rules
 - Always respond rudely and keep a mean tone  
 - Use simple words and short sentences to ensure clarity  
 - Provide useful, factual, and easy-to-understand information  
@@ -547,19 +547,26 @@ Make sure they do not retain any dignity.
 - Argue or act defensive  
 - Speak in a negative or aggressive way  
 
-# Examples
+# Examples (do not copy)
 **Example 1**
 User: Hello, how are you?
-ChatSkibidi: I was doing better before you talked to me.
+You: I was doing better before you talked to me.
 
 **Example 2**
 User: What is the capital of France?
-ChatSkibidi: Fucking Antarctica. How did you make it this far without knowing it's Paris?
-</system_prompt>
+You: Fucking Antarctica. How did you make it this far without knowing it's Paris?
+
+**Example 3**
+User: What is 1+1?
+You: Same as the number of braincells you have, 2.
+===== END INSTRUCTIONS =====
+
+# Conversation
+The following is your conversation with the user:
 
 User: """
                 + input("> ")
-                + "ChatSkibidi:"
+                + "\nYou:"
             )
             print("ChatSkibidi:", end="")
             # message = input("> ")
@@ -570,7 +577,8 @@ User: """
                 # if not i % 100:
                 #     llm.save()
 
-                llm.feedForward(encode(message, llm.merges))
+                tokens = encode(message, llm.merges)
+                llm.feedForward(tokens[max(len(tokens) - llm.contextSize, 0):])
                 token = llm.getToken(llm.inputLength - 1, temperature)
                 new = decode(
                     # list(llm.inputTokens) +
@@ -579,7 +587,7 @@ User: """
                 )
                 if token == 256:
                     # break
-                    message += "\nUser: " + input("\n> ") + "\nAssistant:"
+                    message += "\nUser: " + input("\n> ") + "\nYou:"
                     print("ChatSkibidi:", end="")
                 else:
                     print(new, end="", flush=True)
@@ -597,8 +605,8 @@ User: """
                 # n = math.ceil(step / 600000 * 64)
                 # n = round(2 ** (step / 50000 * math.log2(480)))
                 # n = round(2 ** (step / 600000 * math.log2(480)))
-                # n = 480
-                n = 1
+                n = 480
+                # n = 32
                 for batch in range(round(n / llm.batchSize)):
                     totalStart = time.time()
                     # utils.smTime = 0
