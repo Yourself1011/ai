@@ -51,7 +51,10 @@ def pj():
         start = time()
         dataset = iter(
             load_dataset(
-                "cerebras/SlimPajama-627B", split="train", streaming=True
+                # "cerebras/SlimPajama-627B", split="train", streaming=True
+                "kubaboczar/Slim_Pajama_processed_v1",
+                split="train",
+                streaming=True,
             ).shuffle(seed=round(time() * 1000))
         )
         print(f"loaded dataset in {time() - start}s")

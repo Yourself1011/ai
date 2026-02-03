@@ -578,7 +578,7 @@ User: """
                 #     llm.save()
 
                 tokens = encode(message, llm.merges)
-                llm.feedForward(tokens[max(len(tokens) - llm.contextSize, 0):])
+                llm.feedForward(tokens[max(len(tokens) - llm.contextSize, 0) :])
                 token = llm.getToken(llm.inputLength - 1, temperature)
                 new = decode(
                     # list(llm.inputTokens) +
@@ -651,7 +651,7 @@ User: """
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
-                llm.gradientDescent(3e-4, n, step, clip=1)
+                llm.gradientDescent(1e-3, n, step, clip=1)
                 # llm.gradientDescent(6e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
