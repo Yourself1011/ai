@@ -4,6 +4,7 @@ import regex
 import requests
 import urllib.parse
 from datasets import load_dataset
+from dotenv import load_dotenv
 
 
 def wikiPage():
@@ -49,6 +50,7 @@ def pj():
     if dataset is None:
         print("loading dataset")
         start = time()
+        load_dotenv()
         dataset = iter(
             load_dataset(
                 # "cerebras/SlimPajama-627B", split="train", streaming=True
