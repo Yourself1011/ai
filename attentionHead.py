@@ -58,36 +58,36 @@ class AttentionHead:
         self.query = q.astype(np.float32)
         self.key = k.astype(np.float32)
         self.value = v.astype(np.float32)
-        attentionPattern = np.where(
-            self.mask,
-            self.query @ np.swapaxes(self.key, -1, -2),
-            np.finfo(np.float32).min,
-        ) / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
-        # attentionPattern = self.query @ self.key.T / (np.sqrt(self.embedDim // self.headCount))
 
-        self.weights = softmax(attentionPattern.astype(np.float32))
-        # value = np.matmul(lastLayer, np.matmul(self.valueUp, self.valueDown))
-        # print("alskdjf")
-        # change = (
-        #     value.reshape(1, contextSize, self.embedDim)
-        #     * weights.reshape(contextSize, contextSize, 1)
-        # ).sum(1)
-
-        self.a = self.weights.astype(np.float16) @ self.value.astype(np.float16)
+        self.a = softmax(
+            np.where(
+                self.mask,
+                self.query @ np.swapaxes(self.key, -1, -2),
+                np.finfo(np.float32).min,
+            )
+            / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
+        ).astype(np.float16) @ self.value.astype(np.float16)
         return self.a
 
     def backProp(
         self, error: npt.NDArray
     ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+        weights = softmax(
+            np.where(
+                self.mask,
+                self.query @ np.swapaxes(self.key, -1, -2),
+                np.finfo(np.float32).min,
+            )
+            / (np.sqrt(self.embedDim // self.headCount, dtype=np.float16))
+        )
+
         self.valueError = np.swapaxes(
-            self.weights.astype(np.float16), -1, -2
+            weights.astype(np.float16), -1, -2
         ) @ error.astype(np.float16)
 
         error = error @ np.swapaxes(self.value, -1, -2)
-        sums = (error * self.weights).sum(-1, keepdims=True)
-        error = (
-            self.weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
-        )
+        sums = (error * weights).sum(-1, keepdims=True)
+        error = weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
 
         self.queryError = error @ self.key
         self.keyError = np.swapaxes(error, -1, -2) @ self.query
