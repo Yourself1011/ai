@@ -64,14 +64,16 @@ class Attention(Layer):
             lastLayer.astype(np.float32), self.g16, self.b16
         )
 
-        q, k, v = [
-            np.split(x, self.headCount, axis=-1)
-            for x in np.split(self.lnOut @ self.qkv16, 3, axis=-1)
-        ]
+        self.q, self.k, self.v = np.split(self.lnOut @ self.qkv16, 3, axis=-1)
+
+        qHead = np.split(self.q, self.headCount, axis=-1)
+        kHead = np.split(self.k, self.headCount, axis=-1)
+        vHead = np.split(self.v, self.headCount, axis=-1)
+
         attentionOutputs = []
         for i in range(len(self.heads)):
             # start = time.time()
-            self.heads[i].feedForward(self.lnOut, q[i], k[i], v[i])
+            self.heads[i].feedForward(self.lnOut, qHead[i], kHead[i], vHead[i])
             # print(time.time() - start)
             attentionOutputs.append(self.heads[i].a)
         # print(self.qkv.max())
@@ -97,12 +99,12 @@ class Attention(Layer):
             error @ np.swapaxes(self.proj, -1, -2), self.headCount, axis=-1
         )
         # print(splitError[0].shape)
-        qkvErrors = [[], [], []]
+        qkErrors = []
+        valueErrors = []
         for i in range(len(self.heads)):
-            self.heads[i].backProp(splitError[i])
-            qkvErrors[0].append(self.heads[i].queryError)
-            qkvErrors[1].append(self.heads[i].keyError)
-            qkvErrors[2].append(self.heads[i].valueError)
+            qkError = self.heads[i].backProp(splitError[i])[0]
+            qkErrors.append(qkError)
+            valueErrors.append(self.heads[i].valueError)
             # qkvErrors[0].append(
             #     np.zeros((self.contextSize, self.embedDim // self.headCount))
             # )
@@ -113,9 +115,10 @@ class Attention(Layer):
             #     np.zeros((self.contextSize, self.embedDim // self.headCount))
             # )
 
-        queryError = np.concatenate(qkvErrors[0], axis=-1)
-        keyError = np.concatenate(qkvErrors[1], axis=-1)
-        valueError = np.concatenate(qkvErrors[2], axis=-1)
+        queryError = np.concatenate(qkErrors @ self.k, axis=-1)
+        keyError = np.concatenate(np.swapaxes(qkErrors, -1, -2) @ self.q, axis=-1)
+        valueError = np.concatenate(valueErrors, axis=-1)
+
         error = np.concatenate([queryError, keyError, valueError], axis=-1)
         self.qkvError += (np.swapaxes(self.lnOut, -1, -2) @ error).sum(0)
         # print(error.shape, self.qkv.shape)

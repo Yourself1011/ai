@@ -69,9 +69,7 @@ class AttentionHead:
         ).astype(np.float16) @ self.value.astype(np.float16)
         return self.a
 
-    def backProp(
-        self, error: npt.NDArray
-    ) -> Tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    def backProp(self, error: npt.NDArray) -> Tuple[npt.NDArray, npt.NDArray]:
         weights = softmax(
             np.where(
                 self.mask,
@@ -85,13 +83,14 @@ class AttentionHead:
             weights.astype(np.float16), -1, -2
         ) @ error.astype(np.float16)
 
-        error = error @ np.swapaxes(self.value, -1, -2)
+        error @= np.swapaxes(self.value, -1, -2)
         sums = (error * weights).sum(-1, keepdims=True)
-        error = weights * (error - sums) / (np.sqrt(self.embedDim // self.headCount))
+        error -= sums
+        error *= weights / (np.sqrt(self.embedDim // self.headCount))
 
         self.queryError = error @ self.key
         self.keyError = np.swapaxes(error, -1, -2) @ self.query
-        return self.queryError, self.keyError, self.valueError
+        return error, self.valueError
 
     def gradientDescent(self, learningRate: float, batchSize: int):
         self.queryError: npt.NDArray = np.empty(
