@@ -46,10 +46,8 @@ class Embedding(Layer):
 
     def backProp(self, error: npt.NDArray):
         for j in range(self.input.shape[0] - 1):
-            for i in range(self.contextSize):
-                self.wordsError[self.input[j][i]] += error.astype(np.float16)[j][i]
-        for i in range(self.inputLength):
-            self.wordsError[self.input[-1][i]] += error.astype(np.float16)[-1][i]
+            self.wordsError[self.input[j]] += error.astype(np.float16)[j]
+        self.wordsError[self.input[-1]] += error.astype(np.float16)[-1]
         self.positionsError += error.astype(np.float16).sum(0)
 
     def decode(self, lastLayer: npt.NDArray):

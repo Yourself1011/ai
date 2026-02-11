@@ -77,7 +77,12 @@ class LLM(LLMBase):
         # attentionMask = np.full((self.contextSize, self.contextSize), True)
 
         self.attentions = [
-            Attention(self.contextSize, self.embedDim, self.headCount, attentionMask)
+            Attention(
+                self.contextSize,
+                self.embedDim,
+                self.headCount,
+                attentionMask,
+            )
             for _ in range(layerCount)
         ]
 
@@ -335,7 +340,9 @@ class LLM(LLMBase):
 
     def backProp(self):
         probabilities = softmax(self.a.astype(np.float32))
-        error = np.zeros((self.batchSize, self.contextSize, self.vocabSize))
+        error = np.zeros(
+            (self.batchSize, self.contextSize, self.vocabSize), dtype=np.float32
+        )
 
         # - 1/s(xi) * (s(xi) * (1 - s(xi) - sum(s(xj))))
         # = s(xi) + sum(s(xj)) - 1
@@ -651,7 +658,7 @@ User: """
                 llm.history.append([str(step), str(llm.avgLoss / n)])
 
                 start = time.time()
-                llm.gradientDescent(1e-3, n, step, clip=1)
+                llm.gradientDescent(6e-4, n, step, clip=1)
                 # llm.gradientDescent(6e-3, n, step, clip=1)
                 print("gd", time.time() - start)
                 if time.time() - lastSave > 60:
