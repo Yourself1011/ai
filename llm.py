@@ -70,14 +70,15 @@ class LLM(LLMBase):
         self.t = 1
 
         attentionMask = np.full(
-            (self.contextSize, self.contextSize), False, dtype=np.float32
+            (self.contextSize, self.contextSize), 0, dtype=np.float32
         )
         for i in range(self.contextSize):
-            attentionMask[i][: i + 1] = True
+            attentionMask[i][: i + 1] = 1e9
         # attentionMask = np.full((self.contextSize, self.contextSize), True)
 
         self.attentions = [
             Attention(
+                self.batchSize,
                 self.contextSize,
                 self.embedDim,
                 self.headCount,
@@ -482,6 +483,10 @@ class LLM(LLMBase):
         print(
             "mag:",
             math.sqrt(magSq),
+            "scaleMax:",
+            np.max(np.abs(gradient)) * self.lossScale,
+            "/",
+            np.finfo(np.float16).max,
             "min: ",
             np.min(np.abs(gradient)),
             "max: ",

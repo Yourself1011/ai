@@ -14,18 +14,21 @@ import numpy.typing as npt
 
 from attentionHead import AttentionHead
 from llmlayer import Layer
-from utils import layerNorm
+from utils import layerNorm, softmax
 
 
 class Attention(Layer):
     def __init__(
         self,
+        batchSize: int,
         contextSize: int,
         embedDim: int,
         headCount: int,
         mask: npt.NDArray,
         # pool,
     ) -> None:
+        self.mask = mask
+        self.batchSize = batchSize
         self.contextSize = contextSize
         self.embedDim = embedDim
         self.headCount = headCount
@@ -64,29 +67,32 @@ class Attention(Layer):
             lastLayer.astype(np.float32), self.g16, self.b16
         )
 
-        self.q, self.k, self.v = np.split(self.lnOut @ self.qkv16, 3, axis=-1)
+        self.q, self.k, self.value = np.split(self.lnOut @ self.qkv16, 3, axis=-1)
 
-        qHead = np.split(self.q, self.headCount, axis=-1)
-        kHead = np.split(self.k, self.headCount, axis=-1)
-        vHead = np.split(self.v, self.headCount, axis=-1)
+        qkvDims = (
+            self.batchSize,
+            self.contextSize,
+            self.headCount,
+            self.embedDim // self.headCount,
+        )
+        self.q = np.reshape(self.q.astype(np.float32), qkvDims).transpose(2, 0, 1, 3)
+        self.k = np.reshape(self.k.astype(np.float32), qkvDims).transpose(2, 0, 1, 3)
+        self.value = np.reshape(self.value.astype(np.float16), qkvDims).transpose(
+            2, 0, 1, 3
+        )
 
-        attentionOutputs = []
-        for i in range(len(self.heads)):
-            # start = time.time()
-            self.heads[i].feedForward(self.lnOut, qHead[i], kHead[i], vHead[i])
-            # print(time.time() - start)
-            attentionOutputs.append(self.heads[i].a)
-        # print(self.qkv.max())
+        self.weights = softmax(
+            (
+                (self.q @ np.swapaxes(self.k, -1, -2) - self.mask)
+                / np.sqrt(self.embedDim // self.headCount)
+            ).astype(np.float32)
+        )
 
-        # res = [
-        #     self.pool.apply_async(
-        #         self.heads[i].feedForward, (lastLayer, q[i], k[i], v[i])
-        #     )
-        #     for i in range(len(self.heads))
-        # ]
-        # attentionOutputs = [x.get() for x in res]
+        self.combined = np.reshape(
+            (self.weights.astype(np.float16) @ self.value).transpose(1, 2, 0, 3),
+            (self.batchSize, self.contextSize, self.embedDim),
+        )
 
-        self.combined = np.concatenate(attentionOutputs, axis=-1)
         self.a = self.combined @ self.proj16 + self.input
 
     def backProp(self, error: npt.NDArray):
@@ -95,34 +101,42 @@ class Attention(Layer):
             np.swapaxes(self.combined, -1, -2) @ error.astype(np.float16)
         ).sum(0)
 
-        splitError = np.split(
-            error @ np.swapaxes(self.proj, -1, -2), self.headCount, axis=-1
+        error = np.reshape(
+            error @ np.swapaxes(self.proj, -1, -2),
+            (
+                self.batchSize,
+                self.contextSize,
+                self.headCount,
+                self.embedDim // self.headCount,
+            ),
+        ).transpose(2, 0, 1, 3)
+
+        valueErrors = np.reshape(
+            (
+                self.weights.astype(np.float16).transpose(0, 1, 3, 2)
+                @ error.astype(np.float16)
+            ).transpose(1, 2, 0, 3),
+            (self.batchSize, self.contextSize, self.embedDim),
         )
-        # print(splitError[0].shape)
-        qkErrors = []
-        valueErrors = []
-        for i in range(len(self.heads)):
-            qkError = self.heads[i].backProp(splitError[i])[0]
-            qkErrors.append(qkError)
-            valueErrors.append(self.heads[i].valueError)
-            # qkvErrors[0].append(
-            #     np.zeros((self.contextSize, self.embedDim // self.headCount))
-            # )
-            # qkvErrors[1].append(
-            #     np.zeros((self.contextSize, self.embedDim // self.headCount))
-            # )
-            # qkvErrors[2].append(
-            #     np.zeros((self.contextSize, self.embedDim // self.headCount))
-            # )
 
-        queryError = np.concatenate(qkErrors @ self.k, axis=-1)
-        keyError = np.concatenate(np.swapaxes(qkErrors, -1, -2) @ self.q, axis=-1)
-        valueError = np.concatenate(valueErrors, axis=-1)
+        error @= self.value.transpose(0, 1, 3, 2).astype(np.float32)
+        sums = (error * self.weights).sum(-1, keepdims=True)
+        error -= sums
+        error *= self.weights / (np.sqrt(self.embedDim // self.headCount))
 
-        error = np.concatenate([queryError, keyError, valueError], axis=-1)
+        queryError = np.reshape(
+            (error @ self.k).transpose(1, 2, 0, 3),
+            (self.batchSize, self.contextSize, self.embedDim),
+        )
+        keyError = np.reshape(
+            (np.swapaxes(error, -1, -2) @ self.q).transpose(1, 2, 0, 3),
+            (self.batchSize, self.contextSize, self.embedDim),
+        )
+        error = np.concatenate([queryError, keyError, valueErrors], axis=-1)
+
         self.qkvError += (np.swapaxes(self.lnOut, -1, -2) @ error).sum(0)
         # print(error.shape, self.qkv.shape)
-        error = error @ np.swapaxes(self.qkv, -1, -2)
+        error @= np.swapaxes(self.qkv, -1, -2)
 
         self.bError += error.astype(np.float16).sum(0)
         self.gError += (error.astype(np.float16) * self.z).sum(0)
@@ -141,7 +155,6 @@ class Attention(Layer):
 
         self.gError /= batchSize
         self.bError /= batchSize
-        self.batchSize = batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.b = self.adamW("b", self.b, self.bError, learningRate, t, mult, decay=0)
