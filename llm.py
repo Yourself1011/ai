@@ -70,10 +70,10 @@ class LLM(LLMBase):
         self.t = 1
 
         attentionMask = np.full(
-            (self.contextSize, self.contextSize), 0, dtype=np.float32
+            (self.contextSize, self.contextSize), 1e9, dtype=np.float32
         )
         for i in range(self.contextSize):
-            attentionMask[i][: i + 1] = 1e9
+            attentionMask[i][: i + 1] = 0
         # attentionMask = np.full((self.contextSize, self.contextSize), True)
 
         self.attentions = [
