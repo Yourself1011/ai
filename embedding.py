@@ -1,5 +1,7 @@
 import numpy as np
 
+from utils import f16clamp
+
 try:
     import cupy
 
@@ -67,9 +69,9 @@ class Embedding(Layer):
         self.error = error @ self.words16
 
     def normalizeError(self, batchSize: int):
-        self.wordsError /= batchSize
+        self.wordsError = f16clamp(self.wordsError) / batchSize
         # self.decodeWordsError /= batchSize
-        self.positionsError /= batchSize
+        self.positionsError = f16clamp(self.positionsError) / batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.words = self.adamW(

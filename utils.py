@@ -64,6 +64,10 @@ def softmax(x, T: float = 1):
     return res
 
 
+def f16clamp(x):
+    return np.nan_to_num(np.clip(x, np.finfo(np.float16).min, np.finfo(np.float16).max))
+
+
 if useCupy:
     sigmoid = np.fuse(sigmoid)
     sigmoidPrime = np.fuse(sigmoidPrime)

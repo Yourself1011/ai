@@ -29,7 +29,7 @@ from embedding import Embedding
 from llmlayer import LLMBase
 from mlp import Mlp
 from tokenizer import load
-from utils import layerNorm, softmax
+from utils import f16clamp, layerNorm, softmax
 
 
 # gpt-2 124m hyperparams
@@ -58,14 +58,14 @@ class LLM(LLMBase):
 
         self.embedding = Embedding(vocabSize, embedDim, contextSize)
 
-        self.g = np.ones((contextSize, embedDim), dtype=np.float32)
-        self.b = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.g = np.ones((embedDim), dtype=np.float32)
+        self.b = np.zeros((embedDim), dtype=np.float32)
 
         self.g16 = self.g.astype(np.float16)
         self.b16 = self.b.astype(np.float16)
 
-        self.gError = np.zeros((contextSize, embedDim), dtype=np.float32)
-        self.bError = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.gError = np.zeros((embedDim), dtype=np.float32)
+        self.bError = np.zeros((embedDim), dtype=np.float32)
 
         self.t = 1
 
@@ -96,7 +96,7 @@ class LLM(LLMBase):
         self.avgLoss = 0
         self.history = []
 
-        self.lossScale = 2**8
+        self.lossScale = 2**16
 
         super().__init__()
 
@@ -372,8 +372,8 @@ class LLM(LLMBase):
         error = self.embedding.error
         # print(time.time() - start)
 
-        self.bError += error.astype(np.float16).sum(axis=0)
-        self.gError += (error.astype(np.float16) * self.z).sum(axis=0)
+        self.bError += error.astype(np.float16).sum(axis=0).sum(0)
+        self.gError += (error.astype(np.float16) * self.z).sum(axis=0).sum(0)
 
         error *= self.g
         n = error.shape[-1]
@@ -425,8 +425,8 @@ class LLM(LLMBase):
         # print(np.sort(probabilities[-1])[::-1])
 
     def normalizeError(self, batchSize: int):
-        self.gError /= batchSize
-        self.bError /= batchSize
+        self.gError = f16clamp(self.gError) / batchSize
+        self.bError = f16clamp(self.bError) / batchSize
 
     def gradientDescent(
         self, learningRate: float, batchSize: int, t: int, clip: float = 0
@@ -478,21 +478,39 @@ class LLM(LLMBase):
                     np.reshape(self.mlps[i].betaError, -1),
                 ]
             )
+
+        # ALS loss scaling (broken)
+        overflows = np.count_nonzero(
+            np.abs(gradient) * self.lossScale > 2**13
+        ) + np.count_nonzero(gradient == np.nan)
+
         magSq = np.sum(gradient**2)
 
         print(
             "mag:",
             math.sqrt(magSq),
-            "scaleMax:",
-            np.max(np.abs(gradient)) * self.lossScale,
-            "/",
-            np.finfo(np.float16).max,
             "min: ",
             np.min(np.abs(gradient)),
             "max: ",
             np.max(np.abs(gradient)),
-            end=" ",
+            "\nscaleMax:",
+            np.max(np.abs(gradient)) * self.lossScale,
+            "/",
+            np.finfo(np.float16).max,
+            " (",
+            overflows,
+            ") scale: ",
+            self.lossScale,
+            end="",
         )
+
+        # if overflows / gradient.size >= 1e-7:
+        #     self.lossScale //= 2
+        # else:
+        #     self.lossScale *= 2
+
+        print(" new scale: ", self.lossScale, end="")
+
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
         else:
@@ -508,8 +526,8 @@ class LLM(LLMBase):
         self.g16 = self.g.astype(np.float16)
         self.b16 = self.b.astype(np.float16)
 
-        self.gError = np.zeros((self.contextSize, self.embedDim))
-        self.bError = np.zeros((self.contextSize, self.embedDim))
+        self.gError = np.zeros((self.embedDim))
+        self.bError = np.zeros((self.embedDim))
 
     def getToken(self, index: int, T: float):
         probabilities = softmax(self.a[0][index].astype(np.float32), T=T)

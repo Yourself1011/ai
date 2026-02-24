@@ -13,7 +13,7 @@ import time
 
 import numpy.typing as npt
 
-from utils import layerNorm, sigmoid
+from utils import f16clamp, layerNorm, sigmoid
 
 
 class Mlp(Layer):
@@ -36,8 +36,8 @@ class Mlp(Layer):
             np.zeros(4 * embedDim, dtype=np.float32),
             np.zeros(embedDim, dtype=np.float32),
         ]
-        self.g: npt.NDArray = np.ones((contextSize, embedDim), dtype=np.float32)
-        self.beta: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
+        self.g: npt.NDArray = np.ones((embedDim), dtype=np.float32)
+        self.beta: npt.NDArray = np.zeros((embedDim), dtype=np.float32)
 
         self.w16 = [self.w[i].astype(np.float16) for i in range(2)]
         self.b16 = [self.b[i].astype(np.float16) for i in range(2)]
@@ -52,10 +52,8 @@ class Mlp(Layer):
             np.zeros(4 * embedDim, dtype=np.float32),
             np.zeros(embedDim, dtype=np.float32),
         ]
-        self.gError: npt.NDArray = np.zeros((contextSize, embedDim), dtype=np.float32)
-        self.betaError: npt.NDArray = np.zeros(
-            (contextSize, embedDim), dtype=np.float32
-        )
+        self.gError: npt.NDArray = np.zeros((embedDim), dtype=np.float32)
+        self.betaError: npt.NDArray = np.zeros((embedDim), dtype=np.float32)
         self.error = np.zeros((contextSize, embedDim), dtype=np.float16)
         super().__init__()
 
@@ -101,8 +99,8 @@ class Mlp(Layer):
         # print(error.shape, self.w[0].shape)
         error = error @ np.swapaxes(self.w16[0], -1, -2)
         # self.error += ( self.w[0] @ error.T ).T
-        self.betaError += error.astype(np.float16).sum(0)
-        self.gError += (error.astype(np.float16) * self.z).sum(0)
+        self.betaError += error.astype(np.float16).sum(0).sum(0)
+        self.gError += (error.astype(np.float16) * self.z).sum(0).sum(0)
 
         # derivative of layer norm
         error *= self.g
@@ -114,14 +112,14 @@ class Mlp(Layer):
         self.error = 1 / (n * stdev) * (n * error - errSums - self.z * sums) + initError
 
     def normalizeError(self, batchSize: int):
-        self.wError[0] /= batchSize
-        self.wError[1] /= batchSize
-        self.bError[0] /= batchSize
-        self.bError[1] /= batchSize
+        self.wError[0] = f16clamp(self.wError[0]) / batchSize
+        self.wError[1] = f16clamp(self.wError[1]) / batchSize
+        self.bError[0] = f16clamp(self.bError[0]) / batchSize
+        self.bError[1] = f16clamp(self.bError[1]) / batchSize
 
-        self.gError /= batchSize
-        self.betaError /= batchSize
-        self.error /= batchSize
+        self.gError = f16clamp(self.gError) / batchSize
+        self.betaError = f16clamp(self.betaError) / batchSize
+        self.error = f16clamp(self.error) / batchSize
 
     def gradientDescent(self, learningRate: float, t: int, mult: float):
         self.beta = self.adamW(
@@ -150,6 +148,6 @@ class Mlp(Layer):
             np.zeros(4 * self.embedDim),
             np.zeros(self.embedDim),
         ]
-        self.gError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
-        self.betaError: npt.NDArray = np.zeros((self.contextSize, self.embedDim))
+        self.gError: npt.NDArray = np.zeros((self.embedDim))
+        self.betaError: npt.NDArray = np.zeros((self.embedDim))
         # self.error = np.zeros((self.contextSize, self.embedDim))
