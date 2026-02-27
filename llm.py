@@ -626,7 +626,7 @@ User: """
                 # n = round(2 ** (step / 600000 * math.log2(480)))
                 n = 480
                 # n = 32
-                for batch in range(round(n / llm.batchSize)):
+                for batch in range(n // llm.batchSize):
                     totalStart = time.time()
                     # utils.smTime = 0
                     # start = time.time()
@@ -667,7 +667,7 @@ User: """
                         # utils.smTime,
                     )
                     llm.avgLoss += llm.loss.mean()
-                llm.history.append([str(step), str(llm.avgLoss / n)])
+                llm.history.append([str(step), str(llm.avgLoss / (n // llm.batchSize))])
 
                 start = time.time()
                 llm.gradientDescent(6e-4, n, step, clip=1)
