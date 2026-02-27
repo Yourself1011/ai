@@ -365,8 +365,6 @@ class LLM(LLMBase):
         # )
         # start = time.time()
         error *= self.lossScale
-        sums = (error * probabilities).sum(-1, keepdims=True)
-        error = probabilities * (error - sums)
 
         self.embedding.decodeBackProp(error)
         error = self.embedding.error
@@ -509,7 +507,7 @@ class LLM(LLMBase):
         # else:
         #     self.lossScale *= 2
 
-        print(" new scale: ", self.lossScale, end="")
+        print(" new scale: ", self.lossScale, end=" ")
 
         if clip != 0 and magSq > clip**2:
             mult = clip / math.sqrt(magSq)
