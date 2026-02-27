@@ -350,13 +350,14 @@ class LLM(LLMBase):
         # = s(xi) + 1 - 1
         # = s(xi)
         # print(min(self.tokens.size, self.contextSize + 1))
-        for i in range(self.batchSize - 1):
-            error[i] = probabilities[i]
-            for j in range(self.contextSize):
-                error[i][j][self.tokens[i][j + 1]] -= 1
-        for i in range(self.inputLength - 1):
-            error[-1][i] = probabilities[-1][i]
-            error[-1][i][self.tokens[-1][i + 1]] -= 1
+        error = probabilities
+        targets = self.tokens[:, 1:]
+        error[
+            np.arange(self.batchSize).reshape(-1, 1),
+            np.arange(self.contextSize).reshape(1, -1),
+            targets,
+        ] -= 1
+        error[-1, self.inputLength - 1 :] = 0
         # print(error.sum())
         # error = np.where(
         #     np.arange(self.contextSize).reshape(self.contextSize, 1) < self.inputLength,
@@ -401,26 +402,16 @@ class LLM(LLMBase):
 
     def getLoss(self):
         probabilities = softmax(self.a.astype(np.float32))
-        self.loss = np.zeros((self.batchSize, self.contextSize))
-
-        # count = 0
-        for i in range(self.batchSize - 1):
-            for j in range(self.contextSize):
-                self.loss[i][j] = -np.log(
-                    probabilities[i][j][self.tokens[i][j + 1]] + 1e-20
-                )
-        for i in range(self.inputLength - 1):
-            self.loss[-1][i] = -np.log(
-                probabilities[-1][i][self.tokens[-1][i + 1]] + 1e-20
-            )
-            # print(np.std(self.a[i]))
-            # if np.argmax(probabilities[i]) == self.tokens[i + 1]:
-            # print(decode([int(np.argmax(probabilities[i]))], self.vocab), end="")
-            # count += 1
-            # print(i, probabilities[i][self.tokens[i + 1]])
-        # print(count)
-        # print(np.mean(-np.sum(probabilities[i] * np.log(probabilities[i] + 1e-20), axis=-1)))
-        # print(np.sort(probabilities[-1])[::-1])
+        targets = self.tokens[:, 1:]
+        self.loss = -np.log(
+            probabilities[
+                np.arange(self.batchSize).reshape(-1, 1),
+                np.arange(self.contextSize).reshape(1, -1),
+                targets,
+            ]
+            + 1e-20
+        )
+        self.loss[-1, self.inputLength - 1 :] = 0
 
     def normalizeError(self, batchSize: int):
         self.gError = f16clamp(self.gError) / batchSize
