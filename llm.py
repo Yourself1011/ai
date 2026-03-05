@@ -242,6 +242,10 @@ class LLM(LLMBase):
             else:
                 keys = data.keys()
             for k in keys:
+                # TEMP
+                # if k[0] != "t" and (k[2] == "g" or (k[2] == "b" and k[0] != "m") or ( k[2] == "b" and k[3] == "e" )):
+                #     continue
+
                 v = data[k]
                 if k[0] == "s":
                     if k[1] == "m":
